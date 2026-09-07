@@ -22,6 +22,9 @@ public sealed class MainForm : Form
     private readonly CheckBox _chkPersonalization = new() { Text = "개인화 (탐색기·테마·작업표시줄)", AutoSize = true };
     private readonly CheckBox _chkPrograms = new() { Text = "설치 프로그램 목록 (winget)", AutoSize = true };
     private readonly CheckBox _chkStartup = new() { Text = "시작프로그램", AutoSize = true };
+    private readonly CheckBox _chkWifi = new() { Text = "Wi-Fi 프로필", AutoSize = true };
+    private readonly CheckBox _chkPower = new() { Text = "전원 계획", AutoSize = true };
+    private readonly CheckBox _chkFonts = new() { Text = "설치 폰트 (사용자)", AutoSize = true };
     private readonly ListBox _lstFolders = new();
     private readonly TextBox _txtPassExport = new() { UseSystemPasswordChar = true };
     private readonly TextBox _txtPassExport2 = new() { UseSystemPasswordChar = true };
@@ -69,17 +72,23 @@ public sealed class MainForm : Form
 
     private TabPage BuildExportTab()
     {
-        var page = new TabPage("① 내보내기 (기존 PC)") { Padding = new Padding(12) };
+        var page = new TabPage("① 내보내기 (기존 PC)") { Padding = new Padding(12), AutoScroll = true };
         int y = 12;
 
         page.Controls.Add(Header("옮길 항목 선택", ref y, page.Width));
-        foreach (var chk in new[] { _chkFolders, _chkBookmarks, _chkMouse, _chkCerts, _chkEnv, _chkPersonalization, _chkPrograms, _chkStartup })
+        var checks = new[]
         {
-            chk.Checked = true;
-            chk.Location = new Point(20, y);
-            page.Controls.Add(chk);
-            y += 26;
+            _chkFolders, _chkBookmarks, _chkMouse, _chkCerts, _chkEnv, _chkPersonalization,
+            _chkPrograms, _chkStartup, _chkWifi, _chkPower, _chkFonts,
+        };
+        int checkTop = y;
+        for (int i = 0; i < checks.Length; i++)
+        {
+            checks[i].Checked = true;
+            checks[i].Location = new Point(20 + (i % 2) * 320, checkTop + (i / 2) * 26);
+            page.Controls.Add(checks[i]);
         }
+        y = checkTop + ((checks.Length + 1) / 2) * 26 + 8;
 
         _lstFolders.SetBounds(20, y, 480, 110);
         _lstFolders.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
@@ -157,6 +166,9 @@ public sealed class MainForm : Form
         if (_chkPersonalization.Checked) list.Add(MigrationItemType.Personalization);
         if (_chkPrograms.Checked) list.Add(MigrationItemType.InstalledPrograms);
         if (_chkStartup.Checked) list.Add(MigrationItemType.StartupPrograms);
+        if (_chkWifi.Checked) list.Add(MigrationItemType.WifiProfiles);
+        if (_chkPower.Checked) list.Add(MigrationItemType.PowerPlan);
+        if (_chkFonts.Checked) list.Add(MigrationItemType.Fonts);
         return list;
     }
 

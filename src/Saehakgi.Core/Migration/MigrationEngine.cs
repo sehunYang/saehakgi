@@ -30,6 +30,9 @@ public sealed class MigrationEngine
         new PersonalizationModule(),
         new InstalledProgramsModule(),
         new StartupProgramsModule(),
+        new WifiProfilesModule(),
+        new PowerPlanModule(),
+        new FontsModule(),
     };
 
     public IReadOnlyList<IMigrationModule> Modules => _modules;
@@ -152,7 +155,30 @@ public sealed class MigrationEngine
                 RestoreRegistryValue(action);
                 log?.Invoke($"레지스트리 복원: {action.Target}");
                 break;
+
+            case AppliedActionKind.RunProcessOnReset:
+                RunResetProcess(action, log);
+                break;
         }
+    }
+
+    /// <summary>Commands that reset actions are allowed to run. Anything else is refused.</summary>
+    private static readonly HashSet<string> ResetExeAllowlist =
+        new(StringComparer.OrdinalIgnoreCase) { "netsh", "powercfg" };
+
+    private static void RunResetProcess(AppliedAction action, Action<string>? log)
+    {
+        var exe = action.ResetExe;
+        if (string.IsNullOrWhiteSpace(exe) || !ResetExeAllowlist.Contains(exe))
+        {
+            log?.Invoke($"⚠️ 초기화 명령 거부(허용 목록 외): {exe}");
+            return;
+        }
+
+        var result = Util.ProcessRunner.Run(exe, action.ResetArgs ?? "", 60_000);
+        log?.Invoke(result.Ok
+            ? $"명령 되돌리기: {exe} {action.ResetArgs}"
+            : $"⚠️ 되돌리기 명령 실패({exe}): {action.Target}");
     }
 
     private static void RestoreRegistryValue(AppliedAction action)

@@ -11,6 +11,12 @@ public enum AppliedActionKind
 
     /// <summary>A registry value that was set; previous state captured for restore.</summary>
     SetRegistryValue,
+
+    /// <summary>
+    /// A change undone by running an allowlisted command (netsh/powercfg) on reset —
+    /// for state that isn't a file or registry value (Wi-Fi profiles, power schemes).
+    /// </summary>
+    RunProcessOnReset,
 }
 
 /// <summary>A single reversible step, enough to undo it on reset.</summary>
@@ -30,6 +36,10 @@ public sealed class AppliedAction
     public bool PreviousExisted { get; set; }
     public string? PreviousValue { get; set; }      // scaffold: Control Panel\Mouse values are REG_SZ
     public string? PreviousValueKind { get; set; }  // RegistryValueKind name
+
+    // RunProcessOnReset (exe must be on the reset allowlist: netsh / powercfg)
+    public string? ResetExe { get; set; }
+    public string? ResetArgs { get; set; }
 }
 
 /// <summary>

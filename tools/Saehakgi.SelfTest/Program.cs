@@ -209,6 +209,39 @@ Check("시작프로그램 수집", () =>
     finally { try { Directory.Delete(staging, recursive: true); } catch { } }
 });
 
+Console.WriteLine("\n[7] 명령 기반 되돌리기 + Wi-Fi/전원/폰트");
+
+Check("허용 목록 외(cmd) 초기화 명령은 실행되지 않음", () =>
+{
+    var sentinel = Path.Combine(Path.GetTempPath(), "saehakgi-sentinel-" + Guid.NewGuid().ToString("N") + ".txt");
+    var applied = new AppliedManifest();
+    applied.Actions.Add(new AppliedAction
+    {
+        Kind = AppliedActionKind.RunProcessOnReset,
+        Target = "blocked",
+        ResetExe = "cmd",
+        ResetArgs = $"/c echo x > \"{sentinel}\"",
+    });
+
+    new MigrationEngine().Reset(applied);
+
+    if (File.Exists(sentinel)) { File.Delete(sentinel); throw new Exception("non-allowlisted command was executed"); }
+});
+
+Check("Wi-Fi / 전원 / 폰트 수집 (읽기 전용)", () =>
+{
+    var staging = Path.Combine(Path.GetTempPath(), "saehakgi-net-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(staging);
+    try
+    {
+        var wifi = new WifiProfilesModule().Collect(new MigrationRequest(), staging);
+        var power = new PowerPlanModule().Collect(new MigrationRequest(), staging);
+        var fonts = new FontsModule().Collect(new MigrationRequest(), staging);
+        Console.WriteLine($"         Wi-Fi 항목 {wifi.Count} / 전원 항목 {power.Count} / 폰트 항목 {fonts.Count}");
+    }
+    finally { try { Directory.Delete(staging, recursive: true); } catch { } }
+});
+
 Console.WriteLine();
 if (failures == 0)
 {

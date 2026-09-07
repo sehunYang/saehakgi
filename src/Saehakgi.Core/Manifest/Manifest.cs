@@ -11,6 +11,9 @@ public enum MigrationItemType
     Personalization,
     InstalledPrograms,
     StartupPrograms,
+    WifiProfiles,
+    PowerPlan,
+    Fonts,
 }
 
 /// <summary>One migratable unit recorded in a bundle's manifest.</summary>

@@ -41,6 +41,7 @@ saehakgi.sln
 │       └─ Modules/        Folder / Bookmarks / MouseSettings / Certificate
 │                          / EnvironmentVariables / Personalization
 │                          / InstalledPrograms / StartupPrograms
+│                          / WifiProfiles / PowerPlan / Fonts
 ├─ src/Saehakgi.App/       WinForms GUI (내보내기·가져오기·초기화)
 └─ tools/Saehakgi.SelfTest/ 비대화형 파이프라인 검증 러너
 ```
@@ -54,6 +55,12 @@ saehakgi.sln
 바탕화면 `saehakgi-재설치` 폴더에 `winget.json`과 `install.cmd`를 생성합니다(사용자가
 실행해 일괄 재설치 — 자동 설치는 하지 않음). 시작프로그램은 `HKCU\...\Run` 항목과 사용자
 시작프로그램 폴더 바로가기를 이전합니다.
+
+Wi-Fi 프로필(`netsh`)·전원 계획(`powercfg`)은 파일/레지스트리가 아니라 명령 상태라,
+초기화 시 실행할 명령을 기록하는 **명령 기반 되돌리기**로 처리합니다(실행 파일은
+`netsh`/`powercfg` 화이트리스트로 제한). 사용자 폰트는 파일 복사 + 레지스트리 등록으로
+이전합니다. **주의: Wi-Fi 프로필과 전원 계획은 관리자 권한이 필수라, 앱은 관리자 권한으로
+실행됩니다(`requireAdministrator`).**
 
 > 참고: 디스플레이 배율·야간모드는 모니터/기기별 바이너리 설정이라 다른 PC로의 이식이
 > 신뢰성 있게 되지 않아 대상에서 제외했습니다. Wi-Fi·전원 계획·폰트는 `netsh`/`powercfg`
@@ -77,6 +84,9 @@ dotnet run --project tools/Saehakgi.SelfTest
 ```bash
 dotnet run --project src/Saehakgi.App
 ```
+
+> 앱은 관리자 권한을 요구하므로 GUI는 **관리자 PowerShell**에서 실행하세요(일반 창에서는
+> 승격 오류). 자체 검증 러너(`Saehakgi.SelfTest`)는 콘솔 앱이라 일반 권한으로 동작합니다.
 
 USB용 단일 exe(자체포함) 배포:
 

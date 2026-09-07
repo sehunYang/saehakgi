@@ -2,13 +2,14 @@
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <assemblyIdentity version="1.0.0.0" name="Saehakgi.App"/>
 
-  <!-- Slice 2 modules (user folders, HKCU, Chromium bookmarks) run fine as the
-       invoker. Later slices (program install, machine-wide policy for the browser
-       extension) will switch this to requireAdministrator. -->
+  <!-- Wi-Fi profile export/import (with the key) and power-scheme export/import
+       require elevation (powercfg/netsh return 0x522 without it), as will later
+       slices (program install, machine-wide extension policy). The tool is a
+       system-migration utility, so it runs elevated. -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
-        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>
