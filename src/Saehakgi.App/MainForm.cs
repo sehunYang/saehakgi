@@ -46,6 +46,7 @@ public sealed class MainForm : Form
         Text = "saehakgi — 새 학기 세팅 이전";
         Width = 780;
         Height = 720;
+        MinimumSize = new Size(700, 660);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9F);
 
@@ -76,7 +77,7 @@ public sealed class MainForm : Form
 
     private TabPage BuildExportTab()
     {
-        var page = new TabPage("① 내보내기 (기존 PC)") { Padding = new Padding(12), AutoScroll = true };
+        var page = new TabPage("① 내보내기 (기존 PC)") { Padding = new Padding(12) };
         int y = 12;
 
         page.Controls.Add(Header("옮길 항목 선택", ref y, page.Width));
@@ -102,12 +103,10 @@ public sealed class MainForm : Form
         y += 38;
 
         _lstFolders.SetBounds(20, y, 480, 110);
-        _lstFolders.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         page.Controls.Add(_lstFolders);
 
-        var btnAdd = new Button { Text = "폴더 추가…", Left = 512, Top = y, Width = 110 };
-        var btnRemove = new Button { Text = "제거", Left = 512, Top = y + 34, Width = 110 };
-        btnAdd.Anchor = btnRemove.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        var btnAdd = new Button { Text = "폴더 추가…", Left = 512, Top = y, Width = 130 };
+        var btnRemove = new Button { Text = "제거", Left = 512, Top = y + 34, Width = 130 };
         btnAdd.Click += (_, _) => AddFolder();
         btnRemove.Click += (_, _) => { if (_lstFolders.SelectedItem is not null) _lstFolders.Items.Remove(_lstFolders.SelectedItem); };
         page.Controls.Add(btnAdd);
@@ -216,9 +215,8 @@ public sealed class MainForm : Form
 
         page.Controls.Add(Header("번들 열기", ref y, page.Width));
         _txtBundlePath.SetBounds(20, y, 480, 24);
-        _txtBundlePath.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         page.Controls.Add(_txtBundlePath);
-        var btnBrowse = new Button { Text = "찾아보기…", Left = 512, Top = y - 2, Width = 110, Anchor = AnchorStyles.Top | AnchorStyles.Right };
+        var btnBrowse = new Button { Text = "찾아보기…", Left = 512, Top = y - 2, Width = 130 };
         btnBrowse.Click += (_, _) => BrowseBundle();
         page.Controls.Add(btnBrowse);
         y += 36;
@@ -234,7 +232,6 @@ public sealed class MainForm : Form
         page.Controls.Add(new Label { Text = "가져올 항목 (체크):", Left = 20, Top = y, AutoSize = true });
         y += 22;
         _clbItems.SetBounds(20, y, 602, 150);
-        _clbItems.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         page.Controls.Add(_clbItems);
         y += 162;
 

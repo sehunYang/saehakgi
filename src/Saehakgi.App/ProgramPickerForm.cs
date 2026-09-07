@@ -12,6 +12,7 @@ public sealed class ProgramPickerForm : Form
     private readonly CheckedListBox _list = new() { CheckOnClick = true, Dock = DockStyle.Fill, IntegralHeight = false };
     private readonly TextBox _filter = new() { Dock = DockStyle.Fill };
     private readonly Label _count = new() { AutoSize = true, Padding = new Padding(6, 8, 0, 0) };
+    private bool _populating;
 
     public List<string> Selected { get; private set; } = new();
 
@@ -46,10 +47,11 @@ public sealed class ProgramPickerForm : Form
         AcceptButton = ok;
         CancelButton = cancel;
 
-        _list.ItemCheck += (s, e) =>
+        _list.ItemCheck += (_, e) =>
         {
-            if (_list.Items[e.Index] is string id)
-                BeginInvoke(() => _checked[id] = e.NewValue == CheckState.Checked);
+            if (_populating) return; // ignore checks raised while (re)filling the list
+            if (_list.Items[e.Index] is string id) _checked[id] = e.NewValue == CheckState.Checked;
+            UpdateCount();
         };
 
         Controls.Add(_list);
@@ -63,6 +65,7 @@ public sealed class ProgramPickerForm : Form
     private void Repopulate()
     {
         var term = _filter.Text.Trim();
+        _populating = true;
         _list.BeginUpdate();
         _list.Items.Clear();
         foreach (var id in _allIds)
@@ -71,6 +74,7 @@ public sealed class ProgramPickerForm : Form
             _list.Items.Add(id, _checked[id]);
         }
         _list.EndUpdate();
+        _populating = false;
         UpdateCount();
     }
 
