@@ -29,6 +29,44 @@
 - **구글 계정 등 DBSC/TPM 바인딩 세션**, 서버에서 토큰이 로테이션·만료된 세션은 쿠키를 옮겨도 **새 PC에서 재로그인**이 필요합니다. (하드웨어 서명 특성상 우회 불가)
 - 이 프로그램은 정상적인 개인 데이터 이전 도구지만, **백신이 쿠키 접근 동작을 오탐**할 수 있습니다. 소스가 공개돼 있으니 확인 후 사용하세요. (오탐 완화책은 SPEC.md §3.3)
 
+## 프로젝트 구조
+
+```
+saehakgi.sln
+├─ src/Saehakgi.Core/      핵심 파이프라인 (라이브러리)
+│   ├─ Crypto/             패스프레이즈 KDF + 청크 단위 AES-256-GCM 스트림
+│   ├─ Bundle/             폴더 → zip → 암호화 번들 패킹/언패킹
+│   ├─ Manifest/           내보내기 매니페스트 + 초기화용 적용 매니페스트
+│   └─ Migration/          모듈 계약 + 오케스트레이션 엔진
+│       └─ Modules/        Folder / Bookmarks / MouseSettings
+├─ src/Saehakgi.App/       WinForms GUI (내보내기·가져오기·초기화)
+└─ tools/Saehakgi.SelfTest/ 비대화형 파이프라인 검증 러너
+```
+
+현재 구현(슬라이스 1): **폴더 · 즐겨찾기 · 마우스 설정**을 암호화 번들로 내보내고,
+새 PC에서 가져오고, 옮긴 항목만 초기화하는 왕복 파이프라인. (쿠키·비밀번호·인증서·
+설치 프로그램 등은 다음 슬라이스)
+
+## 빌드 / 실행 / 검증
+
+```bash
+dotnet build saehakgi.sln -c Debug
+```
+
+```bash
+dotnet run --project tools/Saehakgi.SelfTest
+```
+
+```bash
+dotnet run --project src/Saehakgi.App
+```
+
+USB용 단일 exe(자체포함) 배포:
+
+```bash
+dotnet publish src/Saehakgi.App -c Release -r win-x64 -p:PublishSingleFile=true
+```
+
 ## 라이선스
 
 [MIT](LICENSE)
