@@ -38,14 +38,19 @@ saehakgi.sln
 │   ├─ Bundle/             폴더 → zip → 암호화 번들 패킹/언패킹
 │   ├─ Manifest/           내보내기 매니페스트 + 초기화용 적용 매니페스트
 │   └─ Migration/          모듈 계약 + 오케스트레이션 엔진
-│       └─ Modules/        Folder / Bookmarks / MouseSettings
+│       └─ Modules/        Folder / Bookmarks / MouseSettings / Certificate
 ├─ src/Saehakgi.App/       WinForms GUI (내보내기·가져오기·초기화)
 └─ tools/Saehakgi.SelfTest/ 비대화형 파이프라인 검증 러너
 ```
 
-현재 구현(슬라이스 1): **폴더 · 즐겨찾기 · 마우스 설정**을 암호화 번들로 내보내고,
-새 PC에서 가져오고, 옮긴 항목만 초기화하는 왕복 파이프라인. (쿠키·비밀번호·인증서·
-설치 프로그램 등은 다음 슬라이스)
+현재 구현: **폴더 · 즐겨찾기 · 마우스 설정 · 공동인증서(GPKI/NPKI)**를 암호화 번들로
+내보내고, 새 PC의 표준 위치로 가져오고, 옮긴 항목만 초기화하는 왕복 파이프라인.
+(쿠키·비밀번호·설치 프로그램·기타 Windows 설정 등은 다음 슬라이스)
+
+공동인증서는 표준 위치(`AppData\LocalLow\NPKI`·`GPKI`), 프로그램 폴더, 그리고 모든
+드라이브·USB 루트(`\NPKI`·`\GPKI`)를 전수 탐지하여 CN·유효기간과 함께 목록화하고,
+가져오기 시 표준 `LocalLow` 스토어로 정규화 복원합니다. 개인키 파일은 암호화된 상태
+그대로 복사하며 복호화하지 않습니다.
 
 ## 빌드 / 실행 / 검증
 

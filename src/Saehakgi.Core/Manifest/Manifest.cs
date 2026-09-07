@@ -1,11 +1,12 @@
 namespace Saehakgi.Core.Manifest;
 
-/// <summary>Kinds of things saehakgi can migrate. Slice 2 implements these three.</summary>
+/// <summary>Kinds of things saehakgi can migrate.</summary>
 public enum MigrationItemType
 {
     Folder,
     Bookmarks,
     MouseSettings,
+    Certificate,
 }
 
 /// <summary>One migratable unit recorded in a bundle's manifest.</summary>

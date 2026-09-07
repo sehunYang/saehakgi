@@ -25,6 +25,7 @@ public sealed class MigrationEngine
         new FolderModule(),
         new BookmarksModule(),
         new MouseSettingsModule(),
+        new CertificateModule(),
     };
 
     public IReadOnlyList<IMigrationModule> Modules => _modules;

@@ -112,6 +112,38 @@ Check("즐겨찾기 수집(존재 시)", () =>
     try { Directory.Delete(staging, recursive: true); } catch { }
 });
 
+Console.WriteLine("\n[4] 인증서(GPKI/NPKI) 이전 왕복 (주입 루트로 실제 스토어와 격리)");
+
+Check("인증서 수집 → 표준 위치로 복원 → 초기화로 제거", () =>
+{
+    var sandbox = Path.Combine(Path.GetTempPath(), "saehakgi-cert-" + Guid.NewGuid().ToString("N"));
+    var srcStore = Path.Combine(sandbox, "src", "NPKI");
+    var certDir = Path.Combine(srcStore, "yessign", "USER", "cn=TESTUSER0011223344");
+    Directory.CreateDirectory(certDir);
+    File.WriteAllBytes(Path.Combine(certDir, "SignCert.der"), RandomNumberGenerator.GetBytes(512));
+    File.WriteAllBytes(Path.Combine(certDir, "SignPri.key"), RandomNumberGenerator.GetBytes(1024));
+
+    var restoreBase = Path.Combine(sandbox, "restore", "NPKI");
+    var module = new CertificateModule(new[] { new CertStoreRoot(srcStore, "NPKI", restoreBase) });
+
+    var staging = Path.Combine(sandbox, "staging");
+    Directory.CreateDirectory(staging);
+    var items = module.Collect(new MigrationRequest(), staging);
+    if (items.Count != 1) throw new Exception($"expected 1 cert, got {items.Count}");
+
+    var applied = new AppliedManifest();
+    module.Apply(items[0], staging, applied, new MigrationRequest());
+
+    var restoredKey = Path.Combine(restoreBase, "yessign", "USER", "cn=TESTUSER0011223344", "SignPri.key");
+    if (!File.Exists(restoredKey)) throw new Exception("cert not restored to normalized NPKI location");
+
+    new MigrationEngine().Reset(applied);
+    if (Directory.Exists(Path.Combine(restoreBase, "yessign", "USER", "cn=TESTUSER0011223344")))
+        throw new Exception("reset did not remove the restored cert");
+
+    try { Directory.Delete(sandbox, recursive: true); } catch { }
+});
+
 Console.WriteLine();
 if (failures == 0)
 {

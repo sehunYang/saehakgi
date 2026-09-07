@@ -17,6 +17,7 @@ public sealed class MainForm : Form
     private readonly CheckBox _chkFolders = new() { Text = "폴더 (아래 목록, 하위 전체)", AutoSize = true };
     private readonly CheckBox _chkBookmarks = new() { Text = "즐겨찾기 (크롬·엣지)", AutoSize = true };
     private readonly CheckBox _chkMouse = new() { Text = "마우스 설정", AutoSize = true };
+    private readonly CheckBox _chkCerts = new() { Text = "공동인증서 (GPKI/NPKI)", AutoSize = true };
     private readonly ListBox _lstFolders = new();
     private readonly TextBox _txtPassExport = new() { UseSystemPasswordChar = true };
     private readonly TextBox _txtPassExport2 = new() { UseSystemPasswordChar = true };
@@ -68,7 +69,7 @@ public sealed class MainForm : Form
         int y = 12;
 
         page.Controls.Add(Header("옮길 항목 선택", ref y, page.Width));
-        foreach (var chk in new[] { _chkFolders, _chkBookmarks, _chkMouse })
+        foreach (var chk in new[] { _chkFolders, _chkBookmarks, _chkMouse, _chkCerts })
         {
             chk.Checked = true;
             chk.Location = new Point(20, y);
@@ -147,6 +148,7 @@ public sealed class MainForm : Form
         if (_chkFolders.Checked) list.Add(MigrationItemType.Folder);
         if (_chkBookmarks.Checked) list.Add(MigrationItemType.Bookmarks);
         if (_chkMouse.Checked) list.Add(MigrationItemType.MouseSettings);
+        if (_chkCerts.Checked) list.Add(MigrationItemType.Certificate);
         return list;
     }
 
