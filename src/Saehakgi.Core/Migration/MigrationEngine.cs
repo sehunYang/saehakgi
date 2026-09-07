@@ -26,6 +26,8 @@ public sealed class MigrationEngine
         new BookmarksModule(),
         new MouseSettingsModule(),
         new CertificateModule(),
+        new EnvironmentVariablesModule(),
+        new PersonalizationModule(),
     };
 
     public IReadOnlyList<IMigrationModule> Modules => _modules;
@@ -153,15 +155,28 @@ public sealed class MigrationEngine
 
     private static void RestoreRegistryValue(AppliedAction action)
     {
-        // Slice 2 only writes under HKCU\Control Panel\Mouse.
+        // All registry writes are under HKCU (mouse, environment, personalization).
         var subKey = action.RegistryKey!.Replace(@"HKCU\", "", StringComparison.OrdinalIgnoreCase);
         using var key = Registry.CurrentUser.CreateSubKey(subKey, writable: true);
         var name = action.RegistryValueName!;
 
         if (action.PreviousExisted)
-            key.SetValue(name, action.PreviousValue ?? "", RegistryValueKind.String);
+        {
+            var kind = Enum.TryParse<RegistryValueKind>(action.PreviousValueKind, out var k)
+                ? k
+                : RegistryValueKind.String;
+            var value = kind switch
+            {
+                RegistryValueKind.DWord => (object)int.Parse(action.PreviousValue ?? "0"),
+                RegistryValueKind.QWord => long.Parse(action.PreviousValue ?? "0"),
+                _ => action.PreviousValue ?? "",
+            };
+            key.SetValue(name, value, kind);
+        }
         else
+        {
             key.DeleteValue(name, throwOnMissingValue: false);
+        }
     }
 
     public static void SaveApplied(AppliedManifest applied) =>

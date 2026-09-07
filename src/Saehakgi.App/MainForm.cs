@@ -18,6 +18,8 @@ public sealed class MainForm : Form
     private readonly CheckBox _chkBookmarks = new() { Text = "즐겨찾기 (크롬·엣지)", AutoSize = true };
     private readonly CheckBox _chkMouse = new() { Text = "마우스 설정", AutoSize = true };
     private readonly CheckBox _chkCerts = new() { Text = "공동인증서 (GPKI/NPKI)", AutoSize = true };
+    private readonly CheckBox _chkEnv = new() { Text = "환경변수 (사용자)", AutoSize = true };
+    private readonly CheckBox _chkPersonalization = new() { Text = "개인화 (탐색기·테마·작업표시줄)", AutoSize = true };
     private readonly ListBox _lstFolders = new();
     private readonly TextBox _txtPassExport = new() { UseSystemPasswordChar = true };
     private readonly TextBox _txtPassExport2 = new() { UseSystemPasswordChar = true };
@@ -34,7 +36,7 @@ public sealed class MainForm : Form
     {
         Text = "saehakgi — 새 학기 세팅 이전";
         Width = 780;
-        Height = 640;
+        Height = 720;
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9F);
 
@@ -69,7 +71,7 @@ public sealed class MainForm : Form
         int y = 12;
 
         page.Controls.Add(Header("옮길 항목 선택", ref y, page.Width));
-        foreach (var chk in new[] { _chkFolders, _chkBookmarks, _chkMouse, _chkCerts })
+        foreach (var chk in new[] { _chkFolders, _chkBookmarks, _chkMouse, _chkCerts, _chkEnv, _chkPersonalization })
         {
             chk.Checked = true;
             chk.Location = new Point(20, y);
@@ -149,6 +151,8 @@ public sealed class MainForm : Form
         if (_chkBookmarks.Checked) list.Add(MigrationItemType.Bookmarks);
         if (_chkMouse.Checked) list.Add(MigrationItemType.MouseSettings);
         if (_chkCerts.Checked) list.Add(MigrationItemType.Certificate);
+        if (_chkEnv.Checked) list.Add(MigrationItemType.EnvironmentVariables);
+        if (_chkPersonalization.Checked) list.Add(MigrationItemType.Personalization);
         return list;
     }
 

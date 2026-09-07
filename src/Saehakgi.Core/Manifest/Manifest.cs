@@ -7,6 +7,8 @@ public enum MigrationItemType
     Bookmarks,
     MouseSettings,
     Certificate,
+    EnvironmentVariables,
+    Personalization,
 }
 
 /// <summary>One migratable unit recorded in a bundle's manifest.</summary>

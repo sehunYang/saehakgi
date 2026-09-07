@@ -39,13 +39,18 @@ saehakgi.sln
 │   ├─ Manifest/           내보내기 매니페스트 + 초기화용 적용 매니페스트
 │   └─ Migration/          모듈 계약 + 오케스트레이션 엔진
 │       └─ Modules/        Folder / Bookmarks / MouseSettings / Certificate
+│                          / EnvironmentVariables / Personalization
 ├─ src/Saehakgi.App/       WinForms GUI (내보내기·가져오기·초기화)
 └─ tools/Saehakgi.SelfTest/ 비대화형 파이프라인 검증 러너
 ```
 
-현재 구현: **폴더 · 즐겨찾기 · 마우스 설정 · 공동인증서(GPKI/NPKI)**를 암호화 번들로
-내보내고, 새 PC의 표준 위치로 가져오고, 옮긴 항목만 초기화하는 왕복 파이프라인.
-(쿠키·비밀번호·설치 프로그램·기타 Windows 설정 등은 다음 슬라이스)
+현재 구현: **폴더 · 즐겨찾기 · 마우스 설정 · 공동인증서(GPKI/NPKI) · 사용자 환경변수 ·
+개인화(탐색기·테마·작업표시줄)**를 암호화 번들로 내보내고, 새 PC의 표준 위치로 가져오고,
+옮긴 항목만 초기화하는 왕복 파이프라인. (쿠키·비밀번호·설치 프로그램 등은 다음 슬라이스)
+
+> 참고: 디스플레이 배율·야간모드는 모니터/기기별 바이너리 설정이라 다른 PC로의 이식이
+> 신뢰성 있게 되지 않아 대상에서 제외했습니다. Wi-Fi·전원 계획·폰트는 `netsh`/`powercfg`
+> 등 명령 기반이라 "명령 기반 되돌리기" 초기화 액션을 추가하는 별도 슬라이스로 다룹니다.
 
 공동인증서는 표준 위치(`AppData\LocalLow\NPKI`·`GPKI`), 프로그램 폴더, 그리고 모든
 드라이브·USB 루트(`\NPKI`·`\GPKI`)를 전수 탐지하여 CN·유효기간과 함께 목록화하고,

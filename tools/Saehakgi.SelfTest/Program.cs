@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.Win32;
 using Saehakgi.Core.Crypto;
 using Saehakgi.Core.Manifest;
 using Saehakgi.Core.Migration;
@@ -142,6 +143,49 @@ Check("인증서 수집 → 표준 위치로 복원 → 초기화로 제거", ()
         throw new Exception("reset did not remove the restored cert");
 
     try { Directory.Delete(sandbox, recursive: true); } catch { }
+});
+
+Console.WriteLine("\n[5] 레지스트리 설정 적용/초기화 (임시 키로 실제 설정과 격리)");
+
+Check("kind별 적용 → 초기화가 이전값 복원/신규값 삭제", () =>
+{
+    var subKey = @"Software\saehakgi-selftest-" + Guid.NewGuid().ToString("N");
+    try
+    {
+        // Pre-existing value that must be restored on reset.
+        using (var seed = Registry.CurrentUser.CreateSubKey(subKey, true))
+            seed.SetValue("StrVal", "OLD", RegistryValueKind.String);
+
+        var entries = new List<RegEntry>
+        {
+            new(subKey, "StrVal", "hello", "String"),
+            new(subKey, "ExpandVal", @"%USERPROFILE%\x", "ExpandString"),
+            new(subKey, "DwordVal", "7", "DWord"),
+        };
+
+        var applied = new AppliedManifest();
+        RegistryValues.Apply(entries, applied);
+
+        using (var k = Registry.CurrentUser.OpenSubKey(subKey)!)
+        {
+            if ((string?)k.GetValue("StrVal") != "hello") throw new Exception("StrVal not applied");
+            if (k.GetValueKind("ExpandVal") != RegistryValueKind.ExpandString) throw new Exception("ExpandVal kind wrong");
+            if ((int)k.GetValue("DwordVal")! != 7) throw new Exception("DwordVal not applied");
+        }
+
+        new MigrationEngine().Reset(applied);
+
+        using (var k = Registry.CurrentUser.OpenSubKey(subKey)!)
+        {
+            if ((string?)k.GetValue("StrVal") != "OLD") throw new Exception("reset did not restore prior StrVal");
+            if (k.GetValue("ExpandVal") is not null) throw new Exception("reset did not delete new ExpandVal");
+            if (k.GetValue("DwordVal") is not null) throw new Exception("reset did not delete new DwordVal");
+        }
+    }
+    finally
+    {
+        try { Registry.CurrentUser.DeleteSubKeyTree(subKey, throwOnMissingSubKey: false); } catch { }
+    }
 });
 
 Console.WriteLine();
