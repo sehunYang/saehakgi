@@ -1,0 +1,32 @@
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+publish/
+
+# Self-contained publish binaries (distributed via Releases, not committed)
+*.exe
+*.dll
+*.pdb
+
+# Sensitive / runtime
+*.saehakgi
+bundle*
+*.log
+applied-manifest.json
+secrets.*
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# OMC / tooling state
+.omc/
+scratchpad/
+
+# Node (browser extension tooling, if used)
+node_modules/
+dist/
