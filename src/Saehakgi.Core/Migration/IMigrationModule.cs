@@ -13,6 +13,12 @@ public sealed class MigrationRequest
 
     /// <summary>Import: actually apply live OS settings (mouse), not just registry writes.</summary>
     public bool ApplyLiveSettings { get; set; } = true;
+
+    /// <summary>
+    /// Export: winget package identifiers the user chose to carry. Null means "all
+    /// installed"; an empty/other list keeps only those ids in the bundle.
+    /// </summary>
+    public List<string>? SelectedWingetIds { get; set; }
 }
 
 /// <summary>

@@ -242,6 +242,32 @@ Check("Wi-Fi / 전원 / 폰트 수집 (읽기 전용)", () =>
     finally { try { Directory.Delete(staging, recursive: true); } catch { } }
 });
 
+Console.WriteLine("\n[8] 설치 프로그램 선택 필터 (winget.json)");
+
+Check("선택한 winget id만 남기고 필터링", () =>
+{
+    var dir = Path.Combine(Path.GetTempPath(), "saehakgi-wg-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dir);
+    try
+    {
+        var src = Path.Combine(dir, "full.json");
+        File.WriteAllText(src, """
+        { "Sources": [ { "Packages": [
+            {"PackageIdentifier":"Pkg.A"},
+            {"PackageIdentifier":"Pkg.B"},
+            {"PackageIdentifier":"Pkg.C"}
+        ], "SourceDetails": {"Name":"winget"} } ] }
+        """);
+
+        var dest = Path.Combine(dir, "filtered.json");
+        InstalledProgramsModule.WriteFilteredJson(src, dest, new HashSet<string>(new[] { "Pkg.A", "Pkg.C" }, StringComparer.OrdinalIgnoreCase));
+
+        var ids = InstalledProgramsModule.ReadPackageIds(dest);
+        if (!ids.SequenceEqual(new[] { "Pkg.A", "Pkg.C" })) throw new Exception("filter kept: " + string.Join(",", ids));
+    }
+    finally { try { Directory.Delete(dir, recursive: true); } catch { } }
+});
+
 Console.WriteLine();
 if (failures == 0)
 {

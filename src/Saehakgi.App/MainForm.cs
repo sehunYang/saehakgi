@@ -1,5 +1,7 @@
 using Saehakgi.Core.Manifest;
 using Saehakgi.Core.Migration;
+using Saehakgi.Core.Migration.Modules;
+using Saehakgi.Core.Util;
 
 namespace Saehakgi.App;
 
@@ -28,6 +30,8 @@ public sealed class MainForm : Form
     private readonly ListBox _lstFolders = new();
     private readonly TextBox _txtPassExport = new() { UseSystemPasswordChar = true };
     private readonly TextBox _txtPassExport2 = new() { UseSystemPasswordChar = true };
+    private readonly Label _lblProgramSel = new() { AutoSize = true, Text = "설치 프로그램: 전체" };
+    private List<string>? _selectedWingetIds;
 
     // Import tab
     private readonly TextBox _txtBundlePath = new() { ReadOnly = true };
@@ -90,6 +94,13 @@ public sealed class MainForm : Form
         }
         y = checkTop + ((checks.Length + 1) / 2) * 26 + 8;
 
+        var btnPickPrograms = new Button { Text = "설치 프로그램 선택…", Left = 20, Top = y, Width = 160 };
+        btnPickPrograms.Click += (_, _) => PickPrograms();
+        page.Controls.Add(btnPickPrograms);
+        _lblProgramSel.Location = new Point(190, y + 6);
+        page.Controls.Add(_lblProgramSel);
+        y += 38;
+
         _lstFolders.SetBounds(20, y, 480, 110);
         _lstFolders.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         page.Controls.Add(_lstFolders);
@@ -128,6 +139,30 @@ public sealed class MainForm : Form
         }
     }
 
+    private void PickPrograms()
+    {
+        Log("winget 설치 목록을 불러옵니다… (잠시 걸릴 수 있음)");
+        Enabled = false;
+        Task.Run(InstalledProgramsModule.ListWingetIds).ContinueWith(t =>
+        {
+            BeginInvoke(() =>
+            {
+                Enabled = true;
+                if (t.Exception is not null) { Log("목록 불러오기 실패: " + t.Exception.GetBaseException().Message); return; }
+                var ids = t.Result;
+                if (ids.Count == 0) { Warn("winget에서 가져올 수 있는 프로그램이 없습니다 (winget 미설치일 수 있음)."); return; }
+
+                using var picker = new ProgramPickerForm(ids, _selectedWingetIds);
+                if (picker.ShowDialog(this) == DialogResult.OK)
+                {
+                    _selectedWingetIds = picker.Selected;
+                    _lblProgramSel.Text = $"설치 프로그램: {_selectedWingetIds.Count}개 선택";
+                    Log($"설치 프로그램 {_selectedWingetIds.Count}개 선택됨");
+                }
+            });
+        });
+    }
+
     private void DoExport()
     {
         var types = SelectedExportTypes();
@@ -137,7 +172,7 @@ public sealed class MainForm : Form
         if (pass.Length < 4) { Warn("암호는 4자 이상 입력하세요."); return; }
         if (pass != _txtPassExport2.Text) { Warn("암호 확인이 일치하지 않습니다."); return; }
 
-        var request = new MigrationRequest();
+        var request = new MigrationRequest { SelectedWingetIds = _selectedWingetIds };
         foreach (var item in _lstFolders.Items) request.FolderPaths.Add(item.ToString()!);
         if (types.Contains(MigrationItemType.Folder) && request.FolderPaths.Count == 0)
         {
@@ -207,6 +242,10 @@ public sealed class MainForm : Form
         btnImport.Click += (_, _) => DoImport();
         page.Controls.Add(btnImport);
 
+        var btnInstall = new Button { Text = "설치 프로그램 지금 설치…", Left = 232, Top = y, Width = 200, Height = 34 };
+        btnInstall.Click += (_, _) => InstallPrograms();
+        page.Controls.Add(btnInstall);
+
         return page;
     }
 
@@ -247,6 +286,37 @@ public sealed class MainForm : Form
 
         var pass = _txtPassImport.Text;
         RunAsync("가져오기", () => _engine.Import(_txtBundlePath.Text, pass, types, new MigrationRequest(), Log));
+    }
+
+    private void InstallPrograms()
+    {
+        var path = InstalledProgramsModule.DesktopReinstallJsonPath;
+        if (!File.Exists(path))
+        {
+            Warn("먼저 '선택 항목 가져오기'로 설치 프로그램 목록을 적용하세요.\n" +
+                 "(바탕화면에 saehakgi-재설치 폴더와 winget.json 이 생성됩니다.)");
+            return;
+        }
+        if (MessageBox.Show(this,
+                "winget으로 선택된 프로그램을 지금 설치합니다.\n네트워크 연결과 시간이 필요할 수 있습니다. 계속할까요?",
+                "설치 확인", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
+            return;
+
+        Log("── 프로그램 설치 시작 (winget import) ──");
+        Enabled = false;
+        Task.Run(() => ProcessRunner.RunStreaming(
+                "winget",
+                $"import -i \"{path}\" --accept-source-agreements --accept-package-agreements --ignore-unavailable",
+                Log))
+            .ContinueWith(t =>
+            {
+                BeginInvoke(() =>
+                {
+                    Enabled = true;
+                    if (t.Exception is not null) { Log("❌ 설치 실행 실패: " + t.Exception.GetBaseException().Message); return; }
+                    Log(t.Result == 0 ? "✅ 프로그램 설치 완료" : $"설치 종료(코드 {t.Result}) — 일부 실패했을 수 있으니 로그를 확인하세요.");
+                });
+            });
     }
 
     private sealed class ItemRow(ManifestItem item)

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Win32;
 using Saehakgi.Core.Manifest;
 using Saehakgi.Core.Util;
@@ -32,8 +33,18 @@ public sealed class InstalledProgramsModule : IMigrationModule
 
         int wingetCount = 0;
         var wingetJson = Path.Combine(dir, "winget.json");
-        var res = ProcessRunner.Run("winget", $"export -o \"{wingetJson}\" --accept-source-agreements", 120_000);
-        if (res.Ok && File.Exists(wingetJson)) wingetCount = CountWingetPackages(wingetJson);
+        var fullExport = Path.Combine(dir, "winget-full.json");
+        var res = ProcessRunner.Run("winget", $"export -o \"{fullExport}\" --accept-source-agreements", 120_000);
+        if (res.Ok && File.Exists(fullExport))
+        {
+            if (request.SelectedWingetIds is { } selected)
+                WriteFilteredJson(fullExport, wingetJson, new HashSet<string>(selected, StringComparer.OrdinalIgnoreCase));
+            else
+                File.Copy(fullExport, wingetJson, overwrite: true);
+
+            wingetCount = CountWingetPackages(wingetJson);
+            try { File.Delete(fullExport); } catch { /* best effort */ }
+        }
 
         var installed = EnumerateInstalled();
         File.WriteAllLines(
@@ -84,22 +95,66 @@ public sealed class InstalledProgramsModule : IMigrationModule
         "echo 완료. winget 이 모르는 프로그램은 programs.txt 를 참고해 수동 설치하세요.\r\n" +
         "pause\r\n";
 
-    private static int CountWingetPackages(string wingetJsonPath)
+    private static int CountWingetPackages(string wingetJsonPath) => ReadPackageIds(wingetJsonPath).Count;
+
+    /// <summary>Path on the desktop where import drops the reinstall list + script.</summary>
+    public static string DesktopReinstallJsonPath =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), TargetFolderName, "winget.json");
+
+    /// <summary>Runs <c>winget export</c> and returns the installed package identifiers (for the picker).</summary>
+    public static List<string> ListWingetIds()
     {
+        var tmp = Path.Combine(Path.GetTempPath(), "saehakgi-wg-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var res = ProcessRunner.Run("winget", $"export -o \"{tmp}\" --accept-source-agreements", 120_000);
+            return res.Ok && File.Exists(tmp) ? ReadPackageIds(tmp) : new List<string>();
+        }
+        finally
+        {
+            try { File.Delete(tmp); } catch { /* best effort */ }
+        }
+    }
+
+    public static List<string> ReadPackageIds(string wingetJsonPath)
+    {
+        var ids = new List<string>();
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(wingetJsonPath));
-            if (!doc.RootElement.TryGetProperty("Sources", out var sources)) return 0;
-            var count = 0;
-            foreach (var src in sources.EnumerateArray())
-                if (src.TryGetProperty("Packages", out var pkgs))
-                    count += pkgs.GetArrayLength();
-            return count;
+            if (doc.RootElement.TryGetProperty("Sources", out var sources))
+                foreach (var src in sources.EnumerateArray())
+                    if (src.TryGetProperty("Packages", out var pkgs))
+                        foreach (var p in pkgs.EnumerateArray())
+                            if (p.TryGetProperty("PackageIdentifier", out var id) && id.GetString() is { } s)
+                                ids.Add(s);
         }
         catch
         {
-            return 0;
+            // Unreadable export — treat as empty.
         }
+        ids.Sort(StringComparer.OrdinalIgnoreCase);
+        return ids;
+    }
+
+    internal static void WriteFilteredJson(string srcPath, string destPath, HashSet<string> keepIds)
+    {
+        var root = JsonNode.Parse(File.ReadAllText(srcPath))!;
+        if (root["Sources"] is JsonArray sources)
+        {
+            foreach (var src in sources)
+            {
+                if (src?["Packages"] is not JsonArray pkgs) continue;
+                var kept = new JsonArray();
+                foreach (var p in pkgs)
+                {
+                    var id = p?["PackageIdentifier"]?.GetValue<string>();
+                    if (id is not null && keepIds.Contains(id)) kept.Add(p!.DeepClone());
+                }
+                src["Packages"] = kept;
+            }
+        }
+        File.WriteAllText(destPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
     internal static List<InstalledProgram> EnumerateInstalled()
