@@ -188,6 +188,27 @@ Check("kind별 적용 → 초기화가 이전값 복원/신규값 삭제", () =>
     }
 });
 
+Console.WriteLine("\n[6] 설치/시작 프로그램 수집 (읽기 전용)");
+
+Check("설치 프로그램 레지스트리 목록 수집", () =>
+{
+    var programs = InstalledProgramsModule.EnumerateInstalled();
+    if (programs.Count == 0) throw new Exception("expected at least one installed program");
+    Console.WriteLine($"         설치 프로그램: {programs.Count}개 (예: {programs[0].Name})");
+});
+
+Check("시작프로그램 수집", () =>
+{
+    var staging = Path.Combine(Path.GetTempPath(), "saehakgi-startup-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(staging);
+    try
+    {
+        var items = new StartupProgramsModule().Collect(new MigrationRequest(), staging);
+        Console.WriteLine($"         시작프로그램 항목: {items.Count}개" + (items.Count > 0 ? $" ({items[0].DisplayName})" : " (없음)"));
+    }
+    finally { try { Directory.Delete(staging, recursive: true); } catch { } }
+});
+
 Console.WriteLine();
 if (failures == 0)
 {

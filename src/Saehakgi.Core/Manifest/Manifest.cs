@@ -9,6 +9,8 @@ public enum MigrationItemType
     Certificate,
     EnvironmentVariables,
     Personalization,
+    InstalledPrograms,
+    StartupPrograms,
 }
 
 /// <summary>One migratable unit recorded in a bundle's manifest.</summary>

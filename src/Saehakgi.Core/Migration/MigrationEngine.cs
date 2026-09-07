@@ -28,6 +28,8 @@ public sealed class MigrationEngine
         new CertificateModule(),
         new EnvironmentVariablesModule(),
         new PersonalizationModule(),
+        new InstalledProgramsModule(),
+        new StartupProgramsModule(),
     };
 
     public IReadOnlyList<IMigrationModule> Modules => _modules;

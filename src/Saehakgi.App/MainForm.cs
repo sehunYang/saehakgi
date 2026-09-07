@@ -20,6 +20,8 @@ public sealed class MainForm : Form
     private readonly CheckBox _chkCerts = new() { Text = "공동인증서 (GPKI/NPKI)", AutoSize = true };
     private readonly CheckBox _chkEnv = new() { Text = "환경변수 (사용자)", AutoSize = true };
     private readonly CheckBox _chkPersonalization = new() { Text = "개인화 (탐색기·테마·작업표시줄)", AutoSize = true };
+    private readonly CheckBox _chkPrograms = new() { Text = "설치 프로그램 목록 (winget)", AutoSize = true };
+    private readonly CheckBox _chkStartup = new() { Text = "시작프로그램", AutoSize = true };
     private readonly ListBox _lstFolders = new();
     private readonly TextBox _txtPassExport = new() { UseSystemPasswordChar = true };
     private readonly TextBox _txtPassExport2 = new() { UseSystemPasswordChar = true };
@@ -71,7 +73,7 @@ public sealed class MainForm : Form
         int y = 12;
 
         page.Controls.Add(Header("옮길 항목 선택", ref y, page.Width));
-        foreach (var chk in new[] { _chkFolders, _chkBookmarks, _chkMouse, _chkCerts, _chkEnv, _chkPersonalization })
+        foreach (var chk in new[] { _chkFolders, _chkBookmarks, _chkMouse, _chkCerts, _chkEnv, _chkPersonalization, _chkPrograms, _chkStartup })
         {
             chk.Checked = true;
             chk.Location = new Point(20, y);
@@ -153,6 +155,8 @@ public sealed class MainForm : Form
         if (_chkCerts.Checked) list.Add(MigrationItemType.Certificate);
         if (_chkEnv.Checked) list.Add(MigrationItemType.EnvironmentVariables);
         if (_chkPersonalization.Checked) list.Add(MigrationItemType.Personalization);
+        if (_chkPrograms.Checked) list.Add(MigrationItemType.InstalledPrograms);
+        if (_chkStartup.Checked) list.Add(MigrationItemType.StartupPrograms);
         return list;
     }
 
