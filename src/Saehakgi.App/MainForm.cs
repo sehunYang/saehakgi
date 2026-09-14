@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Saehakgi.Core.Manifest;
 using Saehakgi.Core.Migration;
 using Saehakgi.Core.Migration.Modules;
@@ -287,33 +288,54 @@ public sealed class MainForm : Form
 
     private void InstallPrograms()
     {
-        var path = InstalledProgramsModule.DesktopReinstallJsonPath;
-        if (!File.Exists(path))
+        var jsonPath = InstalledProgramsModule.DesktopReinstallJsonPath;
+        if (!File.Exists(jsonPath))
         {
-            Warn("먼저 '선택 항목 가져오기'로 설치 프로그램 목록을 적용하세요.\n" +
-                 "(바탕화면에 saehakgi-재설치 폴더와 winget.json 이 생성됩니다.)");
+            Warn("먼저 '선택 항목 가져오기'로 설치 프로그램 목록을 적용하세요.\n(바탕화면에 saehakgi-재설치 폴더가 생성됩니다.)");
             return;
         }
+        var ids = InstalledProgramsModule.ReadPackageIds(jsonPath);
+        if (ids.Count == 0) { Warn("winget으로 설치할 대상이 없습니다."); return; }
+
         if (MessageBox.Show(this,
-                "winget으로 선택된 프로그램을 지금 설치합니다.\n네트워크 연결과 시간이 필요할 수 있습니다. 계속할까요?",
+                $"winget으로 {ids.Count}개 프로그램을 설치 시도합니다.\n" +
+                "네트워크와 시간이 필요하며, 자동 설치되지 않은 항목만 '설치-체크리스트.html'에 남습니다. 계속할까요?",
                 "설치 확인", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
             return;
 
-        Log("── 프로그램 설치 시작 (winget import) ──");
+        Log($"── 프로그램 설치 시작 (winget, {ids.Count}개) ──");
         Enabled = false;
-        Task.Run(() => ProcessRunner.RunStreaming(
-                "winget",
-                $"import -i \"{path}\" --accept-source-agreements --accept-package-agreements --ignore-unavailable",
-                Log))
-            .ContinueWith(t =>
+        Task.Run(() =>
+        {
+            var failed = new List<string>();
+            foreach (var id in ids)
             {
-                BeginInvoke(() =>
-                {
-                    Enabled = true;
-                    if (t.Exception is not null) { Log("❌ 설치 실행 실패: " + t.Exception.GetBaseException().Message); return; }
-                    Log(t.Result == 0 ? "✅ 프로그램 설치 완료" : $"설치 종료(코드 {t.Result}) — 일부 실패했을 수 있으니 로그를 확인하세요.");
-                });
+                Log($"설치 중: {id}");
+                ProcessRunner.RunStreaming("winget",
+                    $"install --id {id} --exact --silent --accept-source-agreements --accept-package-agreements",
+                    Log, 900_000);
+                // Verify presence — covers "installed now", "already installed", and failures uniformly.
+                bool present = ProcessRunner.Run("winget", $"list --id {id} --exact", 60_000).ExitCode == 0;
+                if (present) Log($"  ✓ {id}");
+                else { failed.Add(id); Log($"  ⚠️ 설치 확인 실패: {id}"); }
+            }
+            InstalledProgramsModule.RegenerateDesktopChecklist(failed);
+            return failed;
+        }).ContinueWith(t =>
+        {
+            BeginInvoke(() =>
+            {
+                Enabled = true;
+                if (t.Exception is not null) { Log("❌ 설치 실행 실패: " + t.Exception.GetBaseException().Message); return; }
+                var failed = t.Result;
+                Log(failed.Count == 0
+                    ? "✅ winget 프로그램 전부 설치됨. 체크리스트에는 직접 설치할 항목만 남았습니다."
+                    : $"설치 시도 완료 — {failed.Count}개는 자동 설치 실패로 체크리스트에 추가됨.");
+                Log("체크리스트: " + InstalledProgramsModule.DesktopChecklistPath);
+                try { Process.Start(new ProcessStartInfo(InstalledProgramsModule.DesktopChecklistPath) { UseShellExecute = true }); }
+                catch { /* user can open it manually */ }
             });
+        });
     }
 
     private sealed class ItemRow(ManifestItem item)

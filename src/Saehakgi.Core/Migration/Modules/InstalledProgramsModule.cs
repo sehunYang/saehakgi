@@ -1,4 +1,7 @@
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -54,6 +57,9 @@ public sealed class InstalledProgramsModule : IMigrationModule
             installed.Select(p => $"{p.Name}\t{p.Version}\t{p.Publisher}"),
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
 
+        // Icons parsed now, embedded, so the new PC shows them without the apps installed.
+        File.WriteAllText(Path.Combine(dir, "icons.json"), JsonSerializer.Serialize(ExtractIcons()));
+
         return new[]
         {
             new ManifestItem
@@ -90,8 +96,10 @@ public sealed class InstalledProgramsModule : IMigrationModule
         if (File.Exists(programsTxt))
         {
             var wingetJson = Path.Combine(target, "winget.json");
+            var iconsJson = Path.Combine(target, "icons.json");
             WriteChecklistHtml(programsTxt, File.Exists(wingetJson) ? wingetJson : null,
-                Path.Combine(target, ChecklistFileName));
+                File.Exists(iconsJson) ? iconsJson : null, Path.Combine(target, ChecklistFileName),
+                failedWingetIds: null);
         }
     }
 
@@ -107,9 +115,26 @@ public sealed class InstalledProgramsModule : IMigrationModule
 
     private static int CountWingetPackages(string wingetJsonPath) => ReadPackageIds(wingetJsonPath).Count;
 
-    /// <summary>Path on the desktop where import drops the reinstall list + script.</summary>
-    public static string DesktopReinstallJsonPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), TargetFolderName, "winget.json");
+    /// <summary>Desktop folder where import drops the reinstall list, script, and checklist.</summary>
+    public static string DesktopReinstallDir =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), TargetFolderName);
+
+    public static string DesktopReinstallJsonPath => Path.Combine(DesktopReinstallDir, "winget.json");
+    public static string DesktopChecklistPath => Path.Combine(DesktopReinstallDir, ChecklistFileName);
+
+    /// <summary>
+    /// Rewrites the desktop checklist. Pass the winget ids that failed to install so
+    /// they are demoted into the manual list; pass null before any install attempt.
+    /// </summary>
+    public static void RegenerateDesktopChecklist(IReadOnlyCollection<string>? failedWingetIds)
+    {
+        var programs = Path.Combine(DesktopReinstallDir, "programs.txt");
+        if (!File.Exists(programs)) return;
+        var winget = Path.Combine(DesktopReinstallDir, "winget.json");
+        var icons = Path.Combine(DesktopReinstallDir, "icons.json");
+        WriteChecklistHtml(programs, File.Exists(winget) ? winget : null,
+            File.Exists(icons) ? icons : null, DesktopChecklistPath, failedWingetIds);
+    }
 
     /// <summary>Runs <c>winget export</c> and returns the installed package identifiers (for the picker).</summary>
     public static List<string> ListWingetIds()
@@ -183,20 +208,36 @@ public sealed class InstalledProgramsModule : IMigrationModule
     }
 
     /// <summary>
-    /// Writes an offline HTML checklist splitting installed programs into "needs
-    /// manual install" (not matched to any winget id) and "winget auto-installs".
-    /// Matching is a conservative heuristic — when unsure, an item is treated as
-    /// manual so nothing is silently assumed handled. Checkbox state persists in
-    /// the browser's localStorage.
+    /// Writes an offline HTML checklist of programs that still need manual install:
+    /// those not matched to any winget id, plus — after an install attempt — the
+    /// winget ids that failed (pass their ids in <paramref name="failedWingetIds"/>;
+    /// null before any attempt). Matching is a conservative heuristic — when unsure a
+    /// program stays on the manual list. Icons parsed at export time are embedded;
+    /// checkbox state persists in the browser's localStorage.
     /// </summary>
-    internal static void WriteChecklistHtml(string programsTxtPath, string? wingetJsonPath, string htmlPath)
+    internal static void WriteChecklistHtml(string programsTxtPath, string? wingetJsonPath, string? iconsJsonPath, string htmlPath, IReadOnlyCollection<string>? failedWingetIds)
     {
         var programs = ParsePrograms(programsTxtPath);
         var tokens = WingetProductTokens(wingetJsonPath is not null ? ReadPackageIds(wingetJsonPath) : new List<string>());
+        var icons = LoadIcons(iconsJsonPath);
+        var failedTokens = failedWingetIds is { Count: > 0 } ? WingetProductTokens(failedWingetIds) : null;
 
         var manual = new List<InstalledProgram>();
-        var auto = new List<InstalledProgram>();
-        foreach (var p in programs) (IsCoveredByWinget(p.Name, tokens) ? auto : manual).Add(p);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var p in programs)
+        {
+            bool covered = IsCoveredByWinget(p.Name, tokens);
+            bool needsManual = !covered || (failedTokens is not null && IsCoveredByWinget(p.Name, failedTokens));
+            if (needsManual && seen.Add(p.Name)) manual.Add(p);
+        }
+        if (failedWingetIds is not null)
+            foreach (var id in failedWingetIds)
+            {
+                var idTokens = WingetProductTokens(new[] { id });
+                if (!programs.Any(p => IsCoveredByWinget(p.Name, idTokens)) && seen.Add(id))
+                    manual.Add(new InstalledProgram(id, "", "winget id"));
+            }
+        manual.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
 
         var sb = new StringBuilder();
         sb.Append("""
@@ -221,6 +262,7 @@ li{border-top:1px solid var(--line)}li:first-child{border-top:0}
 li:nth-child(even){background:rgba(127,127,127,.05)}
 label{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer}
 input[type=checkbox]{width:18px;height:18px;flex:0 0 auto}
+.ico{width:20px;height:20px;flex:0 0 auto;border-radius:4px;object-fit:contain}.ico.ph{background:var(--line)}
 .name{font-weight:600}.meta{color:var(--muted);font-size:12px;margin-left:auto;text-align:right;padding-left:10px}
 label:has(input:checked) .name{text-decoration:line-through;color:var(--done);font-weight:400}
 .empty{padding:14px;color:var(--muted)}
@@ -228,25 +270,18 @@ label:has(input:checked) .name{text-decoration:line-through;color:var(--done);fo
 </style></head><body>
 <header>
 <h1>saehakgi 설치 체크리스트</h1>
-<div class="sub">새 PC에서 설치해야 할 프로그램 목록입니다. 설치한 항목을 체크하세요(체크는 이 브라우저에 저장됩니다).</div>
+<div class="sub">새 PC에서 <b>직접 설치</b>해야 하는 프로그램만 모았습니다. 설치한 항목을 체크하세요(체크는 이 브라우저에 저장됩니다).</div>
 <div class="counts">완료 <b id="progress">0</b> / 전체
 """);
-        sb.Append(programs.Count).Append("""
+        sb.Append(manual.Count).Append("""
 </div></header>
 <div class="tools"><input type="search" id="filter" placeholder="프로그램 검색…"><button onclick="window.print()">인쇄</button></div>
 <main>
-<section><h2>① 직접 설치 필요 <span class="secount"></span></h2>
-<div class="sub" style="padding:4px 0 8px">winget 목록에 없어 자동 설치되지 않습니다. 벤더 사이트나 학교 SW센터에서 설치하세요.</div>
+<section><h2>직접 설치가 필요한 프로그램</h2>
+<div class="sub" style="padding:4px 0 8px">winget으로 자동 설치되지 않거나 설치에 실패한 목록입니다. 벤더 사이트나 학교 SW센터에서 직접 설치하세요.</div>
 <ul>
 """);
-        AppendRows(sb, manual);
-        sb.Append("""
-</ul></section>
-<section><h2>② winget 자동 설치 대상 <span class="secount"></span></h2>
-<div class="sub" style="padding:4px 0 8px">"설치 프로그램 지금 설치"로 자동 설치됩니다(참고용).</div>
-<ul>
-""");
-        AppendRows(sb, auto);
+        AppendRows(sb, manual, icons);
         sb.Append("""
 </ul></section></main>
 <script>
@@ -275,18 +310,36 @@ updateCounts();
         File.WriteAllText(htmlPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
     }
 
-    private static void AppendRows(StringBuilder sb, List<InstalledProgram> items)
+    private static void AppendRows(StringBuilder sb, List<InstalledProgram> items, Dictionary<string, string> icons)
     {
-        if (items.Count == 0) { sb.Append("<li class=\"empty\">없음</li>\n"); return; }
+        if (items.Count == 0) { sb.Append("<li class=\"empty\">직접 설치할 항목이 없습니다. 🎉</li>\n"); return; }
         foreach (var p in items)
         {
             var name = WebUtility.HtmlEncode(p.Name);
             var metaText = string.Join(" · ", new[] { p.Version, p.Publisher }.Where(x => !string.IsNullOrWhiteSpace(x)));
             var meta = WebUtility.HtmlEncode(metaText);
             var key = WebUtility.HtmlEncode(p.Name);
-            sb.Append("<li><label><input type=\"checkbox\" data-key=\"").Append(key).Append("\">")
-              .Append("<span class=\"name\">").Append(name).Append("</span>")
+            sb.Append("<li><label><input type=\"checkbox\" data-key=\"").Append(key).Append("\">");
+            if (icons.TryGetValue(p.Name, out var uri))
+                sb.Append("<img class=\"ico\" src=\"").Append(uri).Append("\" alt=\"\">");
+            else
+                sb.Append("<span class=\"ico ph\"></span>");
+            sb.Append("<span class=\"name\">").Append(name).Append("</span>")
               .Append("<span class=\"meta\">").Append(meta).Append("</span></label></li>\n");
+        }
+    }
+
+    private static Dictionary<string, string> LoadIcons(string? iconsJsonPath)
+    {
+        if (iconsJsonPath is null || !File.Exists(iconsJsonPath)) return new Dictionary<string, string>();
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(iconsJsonPath))
+                   ?? new Dictionary<string, string>();
+        }
+        catch
+        {
+            return new Dictionary<string, string>();
         }
     }
 
@@ -322,10 +375,26 @@ updateCounts();
     private static string NormalizeName(string s) =>
         new string(s.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
-    internal static List<InstalledProgram> EnumerateInstalled()
+    internal static List<InstalledProgram> EnumerateInstalled() =>
+        EnumerateRaw().Select(x => x.Program).ToList();
+
+    /// <summary>Maps each program's display name to a small PNG data URI of its icon.</summary>
+    internal static Dictionary<string, string> ExtractIcons()
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (prog, iconSource) in EnumerateRaw())
+        {
+            if (map.ContainsKey(prog.Name)) continue;
+            var uri = IconDataUri(iconSource);
+            if (uri is not null) map[prog.Name] = uri;
+        }
+        return map;
+    }
+
+    private static List<(InstalledProgram Program, string? IconSource)> EnumerateRaw()
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var result = new List<InstalledProgram>();
+        var result = new List<(InstalledProgram, string?)>();
 
         var roots = new (RegistryHive Hive, RegistryView View)[]
         {
@@ -354,10 +423,11 @@ updateCounts();
                         if (app.GetValue("ParentKeyName") is not null) continue; // updates/hotfixes
 
                         if (!seen.Add(display)) continue;
-                        result.Add(new InstalledProgram(
+                        var prog = new InstalledProgram(
                             display,
                             app.GetValue("DisplayVersion") as string ?? "",
-                            app.GetValue("Publisher") as string ?? ""));
+                            app.GetValue("Publisher") as string ?? "");
+                        result.Add((prog, app.GetValue("DisplayIcon") as string));
                     }
                     catch { /* skip a malformed entry */ }
                 }
@@ -365,7 +435,70 @@ updateCounts();
             catch { /* skip an inaccessible hive/view */ }
         }
 
-        result.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+        result.Sort((a, b) => string.Compare(a.Item1.Name, b.Item1.Name, StringComparison.OrdinalIgnoreCase));
         return result;
     }
+
+    // ---- Icon extraction (export-time; embedded so the new PC needs nothing installed) ----
+
+    private static string? IconDataUri(string? displayIcon)
+    {
+        if (string.IsNullOrWhiteSpace(displayIcon)) return null;
+        var (path, index) = ParseIconRef(displayIcon);
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+
+        try
+        {
+            using var icon = LoadIcon(path, index);
+            if (icon is null) return null;
+            using var bmp = icon.ToBitmap();
+            using var resized = new Bitmap(bmp, new Size(20, 20));
+            using var ms = new MemoryStream();
+            resized.Save(ms, ImageFormat.Png);
+            return "data:image/png;base64," + Convert.ToBase64String(ms.ToArray());
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static (string Path, int Index) ParseIconRef(string raw)
+    {
+        raw = raw.Trim().Trim('"');
+        int comma = raw.LastIndexOf(',');
+        if (comma > 1 && int.TryParse(raw[(comma + 1)..].Trim(), out var index))
+            return (raw[..comma].Trim().Trim('"'), index);
+        return (raw, 0);
+    }
+
+    private static Icon? LoadIcon(string path, int index)
+    {
+        if (string.Equals(Path.GetExtension(path), ".ico", StringComparison.OrdinalIgnoreCase))
+        {
+            try { return new Icon(path); } catch { return null; }
+        }
+
+        var handle = ExtractIconByIndex(path, index);
+        if (handle != IntPtr.Zero)
+        {
+            try { return (Icon)Icon.FromHandle(handle).Clone(); }
+            finally { DestroyIcon(handle); }
+        }
+
+        try { return Icon.ExtractAssociatedIcon(path); } catch { return null; }
+    }
+
+    private static IntPtr ExtractIconByIndex(string path, int index)
+    {
+        var large = new IntPtr[1];
+        try { return ExtractIconEx(path, index, large, null, 1) > 0 ? large[0] : IntPtr.Zero; }
+        catch { return IntPtr.Zero; }
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+    private static extern uint ExtractIconEx(string lpszFile, int nIconIndex, IntPtr[]? phiconLarge, IntPtr[]? phiconSmall, uint nIcons);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 }

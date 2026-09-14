@@ -270,7 +270,7 @@ Check("선택한 winget id만 남기고 필터링", () =>
 
 Console.WriteLine("\n[9] 설치 체크리스트 HTML 생성/분류");
 
-Check("winget에 없는 프로그램은 '직접 설치', 있는 것은 '자동' 섹션에 배치", () =>
+Check("winget 미대상만 노출, 자동 성공은 숨김, 실패분은 강등", () =>
 {
     var dir = Path.Combine(Path.GetTempPath(), "saehakgi-html-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(dir);
@@ -291,21 +291,20 @@ Check("winget에 없는 프로그램은 '직접 설치', 있는 것은 '자동' 
             {"PackageIdentifier":"Microsoft.VisualStudioCode"}
         ], "SourceDetails":{"Name":"winget"} } ] }
         """);
-
         var html = Path.Combine(dir, "check.html");
-        InstalledProgramsModule.WriteChecklistHtml(programs, winget, html);
-        var text = File.ReadAllText(html);
 
-        int autoHeader = text.IndexOf("② winget 자동 설치", StringComparison.Ordinal);
-        int han = text.IndexOf("한글 2020", StringComparison.Ordinal);
-        int gpki = text.IndexOf("GPKI 행정전자서명", StringComparison.Ordinal);
-        int chrome = text.IndexOf("Google Chrome", StringComparison.Ordinal);
-        int code = text.IndexOf("Microsoft Visual Studio Code", StringComparison.Ordinal);
+        // Before install: only non-winget apps listed; winget-covered hidden.
+        InstalledProgramsModule.WriteChecklistHtml(programs, winget, null, html, null);
+        var t1 = File.ReadAllText(html);
+        if (!t1.Contains("한글 2020") || !t1.Contains("GPKI 행정전자서명")) throw new Exception("수동 항목 누락");
+        if (t1.Contains("Google Chrome") || t1.Contains("Microsoft Visual Studio Code")) throw new Exception("자동 대상이 노출됨");
 
-        if (autoHeader < 0 || han < 0 || gpki < 0 || chrome < 0 || code < 0) throw new Exception("항목 누락");
-        if (!(han < autoHeader && gpki < autoHeader)) throw new Exception("수동 항목이 자동 섹션에 들어감");
-        if (!(chrome > autoHeader && code > autoHeader)) throw new Exception("winget 항목이 자동 섹션에 없음");
-        Console.WriteLine("         분류 OK (수동: 한글·GPKI / 자동: Chrome·VSCode)");
+        // After install: a failed winget id is demoted onto the manual list.
+        InstalledProgramsModule.WriteChecklistHtml(programs, winget, null, html, new[] { "Microsoft.VisualStudioCode" });
+        var t2 = File.ReadAllText(html);
+        if (!t2.Contains("Microsoft Visual Studio Code")) throw new Exception("실패한 winget 항목이 강등되지 않음");
+        if (t2.Contains("Google Chrome")) throw new Exception("성공한 winget 항목이 노출됨");
+        Console.WriteLine("         OK (미대상: 한글·GPKI / 실패강등: VSCode / 성공숨김: Chrome)");
     }
     finally { try { Directory.Delete(dir, recursive: true); } catch { } }
 });

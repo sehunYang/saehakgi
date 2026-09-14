@@ -13,4 +13,9 @@
     <InternalsVisibleTo Include="Saehakgi.SelfTest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Icon extraction (Icon/Bitmap/GDI+) — Windows-only, matches the TFM. -->
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+  </ItemGroup>
+
 </Project>
