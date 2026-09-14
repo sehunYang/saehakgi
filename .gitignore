@@ -6,6 +6,7 @@ obj/
 .vs/
 artifacts/
 publish/
+dist/
 
 # Self-contained publish binaries (distributed via Releases, not committed)
 *.exe

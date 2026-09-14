@@ -7,7 +7,9 @@
 - 새 PC에서 실행 → 가져오기 → 설정 이식
 - 옮긴 항목만 추적하여 **원래 상태로 초기화** (포맷·교육용 필수 프로그램 삭제 없음)
 
-> ⚠️ 개발 초기 단계입니다. 현재는 [SPEC.md](SPEC.md)에 설계가 정리되어 있고 구현이 진행 중입니다.
+> 상태: 핵심 이전 기능이 모두 구현되어 자체 검증을 통과합니다(폴더·즐겨찾기·마우스·공동인증서·
+> 환경변수·개인화·설치 프로그램·시작프로그램·Wi-Fi·전원·폰트·브라우저 쿠키, 그리고 옮긴 것만
+> 되돌리는 초기화). 설계는 [SPEC.md](SPEC.md) 참고. 실기기 통합 테스트는 진행 중입니다.
 
 ## 옮길 수 있는 것 (계획)
 
@@ -114,11 +116,27 @@ dotnet run --project src/Saehakgi.App
 > 앱은 관리자 권한을 요구하므로 GUI는 **관리자 PowerShell**에서 실행하세요(일반 창에서는
 > 승격 오류). 자체 검증 러너(`Saehakgi.SelfTest`)는 콘솔 앱이라 일반 권한으로 동작합니다.
 
-USB용 단일 exe(자체포함) 배포:
+## USB 배포 패키징
+
+아래 스크립트가 `saehakgi.exe`와 `Saehakgi.Host.exe`를 **자체포함 단일 exe**(대상 PC에
+.NET 설치 불필요)로 빌드하고 `extension/`까지 `dist/` 폴더에 모읍니다. `dist` 폴더를 그대로
+USB에 복사하면 됩니다.
 
 ```bash
-dotnet publish src/Saehakgi.App -c Release -r win-x64 -p:PublishSingleFile=true
+powershell -ExecutionPolicy Bypass -File build\publish.ps1
 ```
+
+결과 `dist/` 구성:
+
+```
+dist/
+├─ saehakgi.exe          # GUI (관리자 권한 필요 — 실행 시 UAC)
+├─ Saehakgi.Host.exe     # 브라우저 쿠키 네이티브 호스트 (비승격, 크롬/엣지가 실행)
+└─ extension/            # 확장(개발자 모드로 로드)
+```
+
+> 두 exe는 **같은 폴더**에 있어야 합니다(호스트 등록이 saehakgi.exe 옆의 Saehakgi.Host.exe를
+> 찾습니다). 자체포함 단일 파일이라 각 exe 용량은 큽니다(수십 MB, 압축 적용).
 
 ## 라이선스
 
