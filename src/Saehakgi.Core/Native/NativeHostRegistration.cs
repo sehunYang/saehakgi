@@ -14,6 +14,13 @@ public static class NativeHostRegistration
 {
     public const string HostName = "com.saehakgi.host";
 
+    /// <summary>
+    /// The extension's pinned id, derived from the public key committed in
+    /// extension/manifest.json. Fixed on every PC/USB, so the host can be
+    /// registered without the user copying a per-machine id.
+    /// </summary>
+    public const string DefaultExtensionId = "ggchmogolefbbkginnmcepbdallkhfip";
+
     private static readonly string[] RegistryPaths =
     {
         @"Software\Google\Chrome\NativeMessagingHosts\" + HostName,

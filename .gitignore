@@ -19,6 +19,7 @@ bundle*
 *.log
 applied-manifest.json
 secrets.*
+*.pem
 
 # OS
 Thumbs.db

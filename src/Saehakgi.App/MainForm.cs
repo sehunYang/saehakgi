@@ -43,8 +43,8 @@ public sealed class MainForm : Form
     // Reset tab
     private readonly Label _lblResetInfo = new() { AutoSize = true, Text = "" };
 
-    // Browser (cookies) tab
-    private readonly TextBox _txtExtId = new();
+    // Browser (cookies) tab — extension id is pinned, so prefill it.
+    private readonly TextBox _txtExtId = new() { Text = NativeHostRegistration.DefaultExtensionId };
 
     public MainForm()
     {
@@ -406,9 +406,9 @@ public sealed class MainForm : Form
             Left = 12, Top = y, Width = 700, Height = 168, AutoSize = false,
             Text =
                 "쿠키(로그인 세션)는 브라우저 확장으로 이전합니다.\r\n\r\n" +
-                "1) 크롬/엣지 → 확장 관리 → 개발자 모드 → '압축해제된 확장 프로그램 로드'로 이 저장소의 extension 폴더를 로드하세요.\r\n" +
-                "   (같은 폴더 경로면 확장 ID가 항상 동일합니다.)\r\n" +
-                "2) 표시된 확장 ID를 아래에 붙여넣고 '호스트 등록'을 누르세요.\r\n" +
+                "1) 크롬/엣지 → 확장 관리 → 개발자 모드 → '압축해제된 확장 프로그램 로드'로 extension 폴더를 로드하세요.\r\n" +
+                "   (확장 ID는 고정되어 있어 어느 PC에서든 아래 값과 동일합니다.)\r\n" +
+                "2) '호스트 등록'을 누르세요. (확장 ID는 이미 입력되어 있습니다.)\r\n" +
                 "3) 확장 아이콘 팝업에서 USB 파일 경로와 암호를 입력해 내보내기/가져오기.\r\n\r\n" +
                 "⚠ 비밀번호는 확장 API로 읽을 수 없습니다 → 크롬/엣지 설정의 비밀번호 내보내기(CSV)를 사용하세요.\r\n" +
                 "⚠ 구글 등 기기 바인딩 세션은 쿠키를 옮겨도 재로그인이 필요할 수 있습니다.",

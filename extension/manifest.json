@@ -3,6 +3,7 @@
   "name": "saehakgi 쿠키 이전",
   "version": "0.1",
   "description": "브라우저 로그인 쿠키를 USB로 내보내고 새 PC로 가져옵니다 (saehakgi).",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4hXsxsgkGU7k3ah2WjpZOJgLWOfZKnGkqGsH3ZqfOnKtDiKgfdU8kId2difpjpvUOala1CWPAANh+FNS4QtvYTc/zvmPy3ILg0O9T8u3DMbjY+SMxLuz//zl5gbJbYTvQwsKyWoUItGK6j/GQ4cA0tfcfQnJMtnfRLkk5supeyViqTNiLnQoXWtBajeBbxICEkGmwzjjkuk3sz01PQxucFKpMkTmTxwG3+uTTnxtSRuy0CZXbvmUR7y0GbMEtpL7eWsrbaCaXST7WyY70vUzbIL/J0LI/fKA0jjBDW5GvBsFMu0Es3ah9nDXLb2vA8wM/nb5gEI/C4zgvVmNTE8CRQIDAQAB",
   "permissions": ["cookies", "nativeMessaging", "storage"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
