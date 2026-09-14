@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Console subsystem: native-messaging hosts communicate over real stdio, which
+         a GUI (WinExe) process does not get wired up. Chrome launches native hosts
+         with CREATE_NO_WINDOW, so no console flashes.
+         Deliberately NOT requireAdministrator: Chrome (medium IL) must be able to
+         launch this via CreateProcess. -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Saehakgi.Host</RootNamespace>
+    <AssemblyName>Saehakgi.Host</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Saehakgi.Core\Saehakgi.Core.csproj" />
+  </ItemGroup>
+
+</Project>

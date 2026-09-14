@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "saehakgi 쿠키 이전",
+  "version": "0.1",
+  "description": "브라우저 로그인 쿠키를 USB로 내보내고 새 PC로 가져옵니다 (saehakgi).",
+  "permissions": ["cookies", "nativeMessaging", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "saehakgi 쿠키 이전" }
+}

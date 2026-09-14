@@ -1,9 +1,11 @@
 using System.Security.Cryptography;
+using System.Text.Json.Nodes;
 using Microsoft.Win32;
 using Saehakgi.Core.Crypto;
 using Saehakgi.Core.Manifest;
 using Saehakgi.Core.Migration;
 using Saehakgi.Core.Migration.Modules;
+using Saehakgi.Core.Native;
 
 // Non-interactive verification of the saehakgi core pipeline.
 // Exits 0 if every check passes, 1 otherwise.
@@ -307,6 +309,64 @@ Check("winget 미대상만 노출, 자동 성공은 숨김, 실패분은 강등"
         Console.WriteLine("         OK (미대상: 한글·GPKI / 실패강등: VSCode / 성공숨김: Chrome)");
     }
     finally { try { Directory.Delete(dir, recursive: true); } catch { } }
+});
+
+Console.WriteLine("\n[10] 브라우저 쿠키 네이티브 메시징");
+
+Check("메시지 프레이밍 왕복", () =>
+{
+    var ms = new MemoryStream();
+    NativeMessaging.WriteMessage(ms, "{\"cmd\":\"ping\"}");
+    ms.Position = 0;
+    if (NativeMessaging.ReadMessage(ms) != "{\"cmd\":\"ping\"}") throw new Exception("framing mismatch");
+    if (NativeMessaging.ReadMessage(ms) != null) throw new Exception("expected EOF");
+});
+
+Check("ping 응답", () =>
+{
+    var resp = NativeHost.Handle("{\"cmd\":\"ping\"}");
+    if (!resp.Contains("\"ok\":true") || !resp.Contains(NativeHost.Version)) throw new Exception(resp);
+});
+
+Check("쿠키 put→get 왕복 + 잘못된 암호 거부", () =>
+{
+    var path = Path.Combine(Path.GetTempPath(), "saehakgi-ck-" + Guid.NewGuid().ToString("N") + ".dat");
+    try
+    {
+        var put = new JsonObject
+        {
+            ["cmd"] = "put_cookies", ["path"] = path, ["passphrase"] = "pw",
+            ["cookies"] = new JsonArray(new JsonObject
+            {
+                ["name"] = "sid", ["value"] = "abc123", ["domain"] = "example.com", ["path"] = "/", ["secure"] = true,
+            }),
+        }.ToJsonString();
+        var putResp = NativeHost.Handle(put);
+        if (!putResp.Contains("\"ok\":true") || !putResp.Contains("\"count\":1")) throw new Exception("put: " + putResp);
+
+        var get = new JsonObject { ["cmd"] = "get_cookies", ["path"] = path, ["passphrase"] = "pw" }.ToJsonString();
+        var getResp = NativeHost.Handle(get);
+        if (!getResp.Contains("\"ok\":true") || !getResp.Contains("abc123") || !getResp.Contains("sid")) throw new Exception("get: " + getResp);
+
+        var bad = new JsonObject { ["cmd"] = "get_cookies", ["path"] = path, ["passphrase"] = "WRONG" }.ToJsonString();
+        if (!NativeHost.Handle(bad).Contains("\"ok\":false")) throw new Exception("wrong passphrase accepted");
+    }
+    finally { try { File.Delete(path); } catch { } }
+});
+
+Check("RunLoop 다중 메시지 처리", () =>
+{
+    var input = new MemoryStream();
+    NativeMessaging.WriteMessage(input, "{\"cmd\":\"ping\"}");
+    NativeMessaging.WriteMessage(input, "{\"cmd\":\"nope\"}");
+    input.Position = 0;
+    var output = new MemoryStream();
+    NativeHost.RunLoop(input, output);
+    output.Position = 0;
+    var r1 = NativeMessaging.ReadMessage(output);
+    var r2 = NativeMessaging.ReadMessage(output);
+    if (r1 is null || !r1.Contains("\"ok\":true")) throw new Exception("r1: " + r1);
+    if (r2 is null || !r2.Contains("\"ok\":false")) throw new Exception("r2: " + r2);
 });
 
 Console.WriteLine();

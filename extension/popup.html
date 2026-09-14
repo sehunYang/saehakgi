@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font: 13px/1.5 'Segoe UI', system-ui, sans-serif; width: 320px; margin: 0; padding: 12px; }
+  h1 { font-size: 15px; margin: 0 0 8px; }
+  label { display: block; margin: 8px 0 2px; color: #444; }
+  input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  button { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: #f4f4f6; cursor: pointer; }
+  button.primary { background: #2f6df6; color: #fff; border-color: #2f6df6; }
+  #status { margin-top: 10px; min-height: 32px; font-size: 12px; white-space: pre-wrap; color: #333; }
+  .hint { font-size: 11px; color: #888; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <h1>saehakgi 쿠키 이전</h1>
+  <label for="path">USB 파일 경로</label>
+  <input id="path" placeholder="예: E:\saehakgi-cookies.dat">
+  <label for="pass">암호</label>
+  <input id="pass" type="password" placeholder="번들 암호">
+  <div class="row">
+    <button id="export" class="primary">내보내기</button>
+    <button id="import">가져오기</button>
+  </div>
+  <div id="status"></div>
+  <div class="hint">비밀번호는 이 확장으로 옮길 수 없습니다(브라우저 제한). 일부 사이트는 재로그인이 필요할 수 있습니다.</div>
+  <script src="popup.js"></script>
+</body>
+</html>

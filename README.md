@@ -42,7 +42,9 @@ saehakgi.sln
 │                          / EnvironmentVariables / Personalization
 │                          / InstalledPrograms / StartupPrograms
 │                          / WifiProfiles / PowerPlan / Fonts
-├─ src/Saehakgi.App/       WinForms GUI (내보내기·가져오기·초기화)
+├─ src/Saehakgi.App/       WinForms GUI (내보내기·가져오기·초기화·브라우저 쿠키)
+├─ src/Saehakgi.Host/      크롬/엣지 네이티브 메시징 호스트(비승격 exe, 쿠키 브리지)
+├─ extension/              브라우저 확장(MV3): chrome.cookies 내보내기/가져오기
 └─ tools/Saehakgi.SelfTest/ 비대화형 파이프라인 검증 러너
 ```
 
@@ -66,6 +68,19 @@ saehakgi.sln
 
 폴더는 내보내기 탭의 **"폴더 추가…"** 버튼(Windows 탐색기식 선택창)으로 여러 개 담을 수
 있으며, 체크 시 하위 전체가 이전됩니다.
+
+### 브라우저 쿠키 (로그인 세션)
+
+쿠키는 브라우저 확장(`extension/`, MV3)이 `chrome.cookies` API로 읽고/쓰며, 비승격
+네이티브 호스트(`Saehakgi.Host.exe`)를 통해 **사용자 암호로 암호화된 파일**(청크 AES-256-GCM)로
+USB에 저장·복원합니다. 앱은 관리자 권한이라 크롬이 직접 실행할 수 없어 호스트를 별도 exe로
+분리했습니다. GUI의 **④ 브라우저 쿠키** 탭에서 확장 로드 → 확장 ID로 호스트 등록을 안내합니다.
+
+- **비밀번호는 옮길 수 없습니다.** 크롬/엣지는 저장된 비밀번호를 확장에 노출하는 API가 없어
+  원리적으로 불가능합니다. 크롬/엣지 설정의 **비밀번호 내보내기/가져오기(CSV)** 또는 계정
+  동기화를 사용하세요.
+- 구글 등 **기기 바인딩(DBSC/TPM) 세션**, 서버에서 만료·회전된 세션은 쿠키를 옮겨도
+  **재로그인**이 필요할 수 있습니다.
 
 Wi-Fi 프로필(`netsh`)·전원 계획(`powercfg`)은 파일/레지스트리가 아니라 명령 상태라,
 초기화 시 실행할 명령을 기록하는 **명령 기반 되돌리기**로 처리합니다(실행 파일은

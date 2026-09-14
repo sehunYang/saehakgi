@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Saehakgi.Core.Manifest;
 using Saehakgi.Core.Migration;
 using Saehakgi.Core.Migration.Modules;
+using Saehakgi.Core.Native;
 using Saehakgi.Core.Util;
 
 namespace Saehakgi.App;
@@ -42,6 +43,9 @@ public sealed class MainForm : Form
     // Reset tab
     private readonly Label _lblResetInfo = new() { AutoSize = true, Text = "" };
 
+    // Browser (cookies) tab
+    private readonly TextBox _txtExtId = new();
+
     public MainForm()
     {
         Text = "saehakgi — 새 학기 세팅 이전";
@@ -55,6 +59,7 @@ public sealed class MainForm : Form
         tabs.TabPages.Add(BuildExportTab());
         tabs.TabPages.Add(BuildImportTab());
         tabs.TabPages.Add(BuildResetTab());
+        tabs.TabPages.Add(BuildBrowserTab());
 
         _log.Multiline = true;
         _log.ReadOnly = true;
@@ -386,6 +391,71 @@ public sealed class MainForm : Form
             return;
 
         RunAsync("초기화", () => _engine.Reset(applied, Log));
+    }
+
+    // ---------------- Browser (cookies) ----------------
+
+    private TabPage BuildBrowserTab()
+    {
+        var page = new TabPage("④ 브라우저 쿠키") { Padding = new Padding(12) };
+        int y = 12;
+        page.Controls.Add(Header("브라우저 쿠키 이전 (확장 + 네이티브 호스트)", ref y, page.Width));
+
+        var info = new Label
+        {
+            Left = 12, Top = y, Width = 700, Height = 168, AutoSize = false,
+            Text =
+                "쿠키(로그인 세션)는 브라우저 확장으로 이전합니다.\r\n\r\n" +
+                "1) 크롬/엣지 → 확장 관리 → 개발자 모드 → '압축해제된 확장 프로그램 로드'로 이 저장소의 extension 폴더를 로드하세요.\r\n" +
+                "   (같은 폴더 경로면 확장 ID가 항상 동일합니다.)\r\n" +
+                "2) 표시된 확장 ID를 아래에 붙여넣고 '호스트 등록'을 누르세요.\r\n" +
+                "3) 확장 아이콘 팝업에서 USB 파일 경로와 암호를 입력해 내보내기/가져오기.\r\n\r\n" +
+                "⚠ 비밀번호는 확장 API로 읽을 수 없습니다 → 크롬/엣지 설정의 비밀번호 내보내기(CSV)를 사용하세요.\r\n" +
+                "⚠ 구글 등 기기 바인딩 세션은 쿠키를 옮겨도 재로그인이 필요할 수 있습니다.",
+        };
+        page.Controls.Add(info);
+        y += 176;
+
+        page.Controls.Add(new Label { Text = "확장 ID:", Left = 20, Top = y + 4, AutoSize = true });
+        _txtExtId.SetBounds(90, y, 400, 24);
+        page.Controls.Add(_txtExtId);
+        y += 36;
+
+        var btnReg = new Button { Text = "호스트 등록", Left = 20, Top = y, Width = 140, Height = 30 };
+        btnReg.Click += (_, _) => RegisterHost();
+        var btnUnreg = new Button { Text = "등록 해제", Left = 170, Top = y, Width = 120, Height = 30 };
+        btnUnreg.Click += (_, _) =>
+        {
+            try { NativeHostRegistration.Unregister(); Log("네이티브 호스트 등록 해제됨"); }
+            catch (Exception ex) { Log("해제 실패: " + ex.Message); }
+        };
+        page.Controls.Add(btnReg);
+        page.Controls.Add(btnUnreg);
+        return page;
+    }
+
+    private void RegisterHost()
+    {
+        var extId = _txtExtId.Text.Trim();
+        if (extId.Length == 0) { Warn("확장 ID를 입력하세요."); return; }
+
+        var hostExe = Path.Combine(AppContext.BaseDirectory, "Saehakgi.Host.exe");
+        if (!File.Exists(hostExe))
+        {
+            Warn($"호스트 실행 파일을 찾을 수 없습니다:\n{hostExe}\n\n배포 시 saehakgi.exe 와 Saehakgi.Host.exe 를 같은 폴더에 두세요.");
+            return;
+        }
+        try
+        {
+            var manifest = NativeHostRegistration.Register(hostExe, extId);
+            Log("네이티브 호스트 등록됨: " + manifest);
+            Warn("등록되었습니다. 브라우저를 완전히 종료 후 다시 열어 확장 팝업에서 이전하세요.");
+        }
+        catch (Exception ex)
+        {
+            Log("등록 실패: " + ex.Message);
+            Warn(ex.Message);
+        }
     }
 
     // ---------------- Shared ----------------
