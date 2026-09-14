@@ -268,6 +268,48 @@ Check("선택한 winget id만 남기고 필터링", () =>
     finally { try { Directory.Delete(dir, recursive: true); } catch { } }
 });
 
+Console.WriteLine("\n[9] 설치 체크리스트 HTML 생성/분류");
+
+Check("winget에 없는 프로그램은 '직접 설치', 있는 것은 '자동' 섹션에 배치", () =>
+{
+    var dir = Path.Combine(Path.GetTempPath(), "saehakgi-html-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(dir);
+    try
+    {
+        var programs = Path.Combine(dir, "programs.txt");
+        File.WriteAllLines(programs, new[]
+        {
+            "Google Chrome\t120.0\tGoogle LLC",
+            "한글 2020\t\t한글과컴퓨터",
+            "GPKI 행정전자서명 인증서\t\t행정안전부",
+            "Microsoft Visual Studio Code\t1.90\tMicrosoft",
+        });
+        var winget = Path.Combine(dir, "winget.json");
+        File.WriteAllText(winget, """
+        { "Sources":[ { "Packages":[
+            {"PackageIdentifier":"Google.Chrome"},
+            {"PackageIdentifier":"Microsoft.VisualStudioCode"}
+        ], "SourceDetails":{"Name":"winget"} } ] }
+        """);
+
+        var html = Path.Combine(dir, "check.html");
+        InstalledProgramsModule.WriteChecklistHtml(programs, winget, html);
+        var text = File.ReadAllText(html);
+
+        int autoHeader = text.IndexOf("② winget 자동 설치", StringComparison.Ordinal);
+        int han = text.IndexOf("한글 2020", StringComparison.Ordinal);
+        int gpki = text.IndexOf("GPKI 행정전자서명", StringComparison.Ordinal);
+        int chrome = text.IndexOf("Google Chrome", StringComparison.Ordinal);
+        int code = text.IndexOf("Microsoft Visual Studio Code", StringComparison.Ordinal);
+
+        if (autoHeader < 0 || han < 0 || gpki < 0 || chrome < 0 || code < 0) throw new Exception("항목 누락");
+        if (!(han < autoHeader && gpki < autoHeader)) throw new Exception("수동 항목이 자동 섹션에 들어감");
+        if (!(chrome > autoHeader && code > autoHeader)) throw new Exception("winget 항목이 자동 섹션에 없음");
+        Console.WriteLine("         분류 OK (수동: 한글·GPKI / 자동: Chrome·VSCode)");
+    }
+    finally { try { Directory.Delete(dir, recursive: true); } catch { } }
+});
+
 Console.WriteLine();
 if (failures == 0)
 {
