@@ -7,6 +7,7 @@ obj/
 artifacts/
 publish/
 dist/
+saehakgi-*.zip
 
 # Self-contained publish binaries (distributed via Releases, not committed)
 *.exe

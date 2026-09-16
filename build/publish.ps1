@@ -10,8 +10,10 @@
   Self-contained => target PCs need NO .NET runtime installed.
   Copy the whole dist/ folder onto the USB.
 
-  Usage:  powershell -ExecutionPolicy Bypass -File build\publish.ps1
+  Usage:  powershell -ExecutionPolicy Bypass -File build\publish.ps1 [-Version 0.1.0]
 #>
+param([string]$Version = '0.1.0')
+
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -54,11 +56,20 @@ Write-Host "`n=== publishing Saehakgi.Host (native host) ==="
 dotnet publish (Join-Path $root 'src\Saehakgi.Host\Saehakgi.Host.csproj') @flags
 if ($LASTEXITCODE -ne 0) { throw 'Host publish failed' }
 
-Write-Host "`n=== bundling extension ==="
+Write-Host "`n=== bundling extension + user guide ==="
 Copy-Item (Join-Path $root 'extension') (Join-Path $dist 'extension') -Recurse -Force
+
+$assets = Join-Path $root 'build\dist-assets'
+if (Test-Path $assets) { Copy-Item (Join-Path $assets '*') $dist -Recurse -Force }
 
 # Keep only what the USB needs (drop stray config/pdb if any).
 Get-ChildItem $dist -Filter *.pdb -ErrorAction SilentlyContinue | Remove-Item -Force
+
+Write-Host "`n=== zipping ==="
+$zip = Join-Path $root "saehakgi-$Version.zip"
+if (Test-Path $zip) { Remove-Item $zip -Force }
+Compress-Archive -Path (Join-Path $dist '*') -DestinationPath $zip
+Write-Host ("zip: {0}  ({1:N1} MB)" -f $zip, ((Get-Item $zip).Length / 1MB))
 
 Write-Host "`n=== dist contents ==="
 Get-ChildItem $dist -Recurse |
