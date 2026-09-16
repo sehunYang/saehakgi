@@ -399,40 +399,117 @@ public sealed class MainForm : Form
     {
         var page = new TabPage("④ 브라우저 쿠키") { Padding = new Padding(12) };
         int y = 12;
-        page.Controls.Add(Header("브라우저 쿠키 이전 (확장 + 네이티브 호스트)", ref y, page.Width));
+        page.Controls.Add(Header("브라우저 쿠키 이전", ref y, page.Width));
 
         var info = new Label
         {
-            Left = 12, Top = y, Width = 700, Height = 168, AutoSize = false,
+            Left = 12, Top = y, Width = 712, Height = 216, AutoSize = false,
             Text =
-                "쿠키(로그인 세션)는 브라우저 확장으로 이전합니다.\r\n\r\n" +
-                "1) 크롬/엣지 → 확장 관리 → 개발자 모드 → '압축해제된 확장 프로그램 로드'로 extension 폴더를 로드하세요.\r\n" +
-                "   (확장 ID는 고정되어 있어 어느 PC에서든 아래 값과 동일합니다.)\r\n" +
-                "2) '호스트 등록'을 누르세요. (확장 ID는 이미 입력되어 있습니다.)\r\n" +
-                "3) 확장 아이콘 팝업에서 USB 파일 경로와 암호를 입력해 내보내기/가져오기.\r\n\r\n" +
-                "⚠ 비밀번호는 확장 API로 읽을 수 없습니다 → 크롬/엣지 설정의 비밀번호 내보내기(CSV)를 사용하세요.\r\n" +
-                "⚠ 구글 등 기기 바인딩 세션은 쿠키를 옮겨도 재로그인이 필요할 수 있습니다.",
+                "구조: 이 앱은 '다리'만 놓습니다. 실제 쿠키 내보내기/가져오기는 브라우저 확장 팝업에서 합니다.\r\n" +
+                "(쿠키는 브라우저만 만질 수 있기 때문입니다.)\r\n" +
+                "\r\n" +
+                "■ 준비 — 기존 PC·새 PC 각각 1회\r\n" +
+                "  1) 이 앱을 USB의 dist 폴더에서 실행하세요 (saehakgi.exe).\r\n" +
+                "  2) 크롬/엣지 → 확장 관리 → '개발자 모드' 켜기 → '압축해제된 확장 프로그램 로드'\r\n" +
+                "       → USB의 dist\\extension 폴더 선택.\r\n" +
+                "  3) 아래 '① 호스트 등록'을 누르세요 (확장 ID는 이미 입력됨).\r\n" +
+                "  4) 브라우저를 완전히 종료 후 다시 실행.\r\n" +
+                "\r\n" +
+                "■ 이전 — 확장 아이콘(퍼즐) → 'saehakgi 쿠키 이전' 팝업\r\n" +
+                "  · 기존 PC: USB 파일 경로(예: E:\\saehakgi-cookies.dat)+암호 입력 → '내보내기'\r\n" +
+                "  · 새   PC: 같은 경로+같은 암호 입력 → '가져오기'\r\n" +
+                "\r\n" +
+                "⚠ 비밀번호는 옮길 수 없습니다(브라우저 제한). 일부 사이트는 재로그인이 필요합니다.\r\n" +
+                "   자세한 단계는 오른쪽 '도움말 열기'를 누르세요.",
         };
         page.Controls.Add(info);
-        y += 176;
+        y += 224;
 
         page.Controls.Add(new Label { Text = "확장 ID:", Left = 20, Top = y + 4, AutoSize = true });
-        _txtExtId.SetBounds(90, y, 400, 24);
+        _txtExtId.SetBounds(90, y, 360, 24);
         page.Controls.Add(_txtExtId);
         y += 36;
 
-        var btnReg = new Button { Text = "호스트 등록", Left = 20, Top = y, Width = 140, Height = 30 };
+        var btnReg = new Button { Text = "① 호스트 등록", Left = 20, Top = y, Width = 130, Height = 30 };
         btnReg.Click += (_, _) => RegisterHost();
-        var btnUnreg = new Button { Text = "등록 해제", Left = 170, Top = y, Width = 120, Height = 30 };
+        var btnUnreg = new Button { Text = "등록 해제", Left = 158, Top = y, Width = 100, Height = 30 };
         btnUnreg.Click += (_, _) =>
         {
             try { NativeHostRegistration.Unregister(); Log("네이티브 호스트 등록 해제됨"); }
             catch (Exception ex) { Log("해제 실패: " + ex.Message); }
         };
+        var btnHelp = new Button { Text = "도움말 열기", Left = 266, Top = y, Width = 120, Height = 30 };
+        btnHelp.Click += (_, _) => OpenCookieHelp();
         page.Controls.Add(btnReg);
         page.Controls.Add(btnUnreg);
+        page.Controls.Add(btnHelp);
         return page;
     }
+
+    private void OpenCookieHelp()
+    {
+        try
+        {
+            var path = Path.Combine(AppPaths.Root, "쿠키-사용안내.html");
+            File.WriteAllText(path, CookieHelpHtml(), new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            Log("도움말 열기: " + path);
+        }
+        catch (Exception ex)
+        {
+            Warn("도움말을 열 수 없습니다: " + ex.Message);
+        }
+    }
+
+    private static string CookieHelpHtml() => """
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>saehakgi 브라우저 쿠키 이전 안내</title>
+<style>
+:root{--bg:#f7f7f8;--fg:#1a1a1a;--card:#fff;--muted:#666;--line:#e3e3e6;--accent:#2f6df6}
+@media(prefers-color-scheme:dark){:root{--bg:#16171a;--fg:#e8e8ea;--card:#212226;--muted:#9a9aa0;--line:#33343a;--accent:#6c9bff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 'Segoe UI',system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 18px 60px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px;border-left:4px solid var(--accent);padding-left:10px}
+.lead{color:var(--muted)}
+ol{padding-left:22px}li{margin:6px 0}
+code{background:rgba(127,127,127,.15);padding:1px 6px;border-radius:5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-top:12px}
+.warn{border-left:4px solid #e0a400}
+.pill{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;padding:1px 10px;font-size:13px}
+</style></head><body><main>
+<h1>브라우저 쿠키 이전 안내</h1>
+<p class="lead">이 앱은 <b>다리(호스트)</b>만 놓습니다. 실제 쿠키 내보내기·가져오기는 <b>브라우저 확장 팝업</b>에서 합니다. 쿠키는 브라우저만 만질 수 있기 때문입니다.</p>
+
+<h2><span class="pill">준비</span> 기존 PC·새 PC 각각 한 번</h2>
+<ol>
+<li>이 앱을 <b>USB의 <code>dist</code> 폴더</b>에서 실행합니다(<code>saehakgi.exe</code>). 등록이 옆의 <code>Saehakgi.Host.exe</code> 경로를 기록하므로 꼭 dist 폴더에서 실행하세요.</li>
+<li>크롬은 <code>chrome://extensions</code>, 엣지는 <code>edge://extensions</code> 로 이동 → 오른쪽 <b>개발자 모드</b>를 켜고 → <b>“압축해제된 확장 프로그램을 로드합니다”</b> → USB의 <code>dist\extension</code> 폴더를 선택합니다.</li>
+<li>앱의 <b>④ 브라우저 쿠키</b> 탭에서 <b>“① 호스트 등록”</b>을 누릅니다. (확장 ID <code>%EXTID%</code> 는 이미 입력되어 있습니다.)</li>
+<li><b>브라우저를 완전히 종료</b>했다가 다시 엽니다. (등록은 브라우저 시작 시 반영됩니다.)</li>
+</ol>
+
+<h2><span class="pill">내보내기</span> 기존 PC</h2>
+<ol>
+<li>브라우저 오른쪽 위 <b>퍼즐(확장) 아이콘 → “saehakgi 쿠키 이전”</b> 클릭.</li>
+<li>팝업에 <b>USB 파일 경로</b>(예: <code>E:\saehakgi-cookies.dat</code>)와 <b>암호</b>를 입력.</li>
+<li><b>내보내기</b> 클릭 → “내보내기 완료: 쿠키 N개 저장” 확인.</li>
+</ol>
+
+<h2><span class="pill">가져오기</span> 새 PC</h2>
+<ol>
+<li>새 PC에서도 위 <b>준비 1~4</b>를 먼저 합니다.</li>
+<li>확장 팝업에 <b>같은 USB 파일 경로 + 같은 암호</b> 입력 → <b>가져오기</b> 클릭.</li>
+<li>로그인 상태를 쓸 사이트를 새로고침합니다.</li>
+</ol>
+
+<h2>자주 막히는 점</h2>
+<div class="card"><b>드라이브 문자</b> — USB가 PC마다 <code>E:</code>/<code>F:</code> 로 다를 수 있습니다. 팝업 경로를 그 PC의 실제 문자에 맞추세요.</div>
+<div class="card"><b>브라우저 재시작</b> — 호스트 등록 후 브라우저를 껐다 켜지 않으면 “호스트 없음” 오류가 납니다.</div>
+<div class="card warn"><b>비밀번호는 옮길 수 없습니다</b> — 브라우저가 저장된 비밀번호를 확장에 노출하지 않습니다. 크롬/엣지 설정의 <b>비밀번호 내보내기/가져오기(CSV)</b>를 사용하세요.</div>
+<div class="card warn"><b>재로그인이 필요할 수 있음</b> — 구글 등 기기 바인딩 세션이나 서버에서 만료·회전된 세션은 쿠키를 옮겨도 새 PC에서 다시 로그인해야 합니다.</div>
+</main></body></html>
+""".Replace("%EXTID%", NativeHostRegistration.DefaultExtensionId);
 
     private void RegisterHost()
     {
