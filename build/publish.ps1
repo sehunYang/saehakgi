@@ -22,7 +22,16 @@ Write-Host "repo : $root"
 Write-Host "dist : $dist"
 Write-Host "rid  : $rid`n"
 
-if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
+if (Test-Path $dist) {
+  try {
+    Remove-Item $dist -Recurse -Force -ErrorAction Stop
+  } catch {
+    Write-Host "`n[!] dist 폴더를 정리하지 못했습니다." -ForegroundColor Yellow
+    Write-Host "    실행 중인 saehakgi.exe / Saehakgi.Host.exe(또는 확장이 연 브라우저)를 모두 닫고 다시 실행하세요."
+    Write-Host "    상세: $($_.Exception.Message)"
+    exit 1
+  }
+}
 New-Item -ItemType Directory -Force $dist | Out-Null
 
 $flags = @(
