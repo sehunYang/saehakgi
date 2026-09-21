@@ -60,7 +60,12 @@ Write-Host "`n=== bundling extension + user guide ==="
 Copy-Item (Join-Path $root 'extension') (Join-Path $dist 'extension') -Recurse -Force
 
 $assets = Join-Path $root 'build\dist-assets'
-if (Test-Path $assets) { Copy-Item (Join-Path $assets '*') $dist -Recurse -Force }
+if (Test-Path $assets) {
+  # Skip dot-folders (tooling state such as .omc) so they never reach the USB.
+  Get-ChildItem $assets -Force |
+    Where-Object { $_.Name -notlike '.*' } |
+    ForEach-Object { Copy-Item $_.FullName -Destination $dist -Recurse -Force }
+}
 
 # Keep only what the USB needs (drop stray config/pdb if any).
 Get-ChildItem $dist -Filter *.pdb -ErrorAction SilentlyContinue | Remove-Item -Force

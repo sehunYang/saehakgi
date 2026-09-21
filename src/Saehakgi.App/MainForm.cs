@@ -403,7 +403,7 @@ public sealed class MainForm : Form
 
         var info = new Label
         {
-            Left = 12, Top = y, Width = 712, Height = 216, AutoSize = false,
+            Left = 12, Top = y, Width = 712, Height = 292, AutoSize = false,
             Text =
                 "구조: 이 앱은 '다리'만 놓습니다. 실제 쿠키 내보내기/가져오기는 브라우저 확장 팝업에서 합니다.\r\n" +
                 "(쿠키는 브라우저만 만질 수 있기 때문입니다.)\r\n" +
@@ -423,7 +423,7 @@ public sealed class MainForm : Form
                 "   자세한 단계는 오른쪽 '도움말 열기'를 누르세요.",
         };
         page.Controls.Add(info);
-        y += 224;
+        y += 300;
 
         page.Controls.Add(new Label { Text = "확장 ID:", Left = 20, Top = y + 4, AutoSize = true });
         _txtExtId.SetBounds(90, y, 360, 24);
